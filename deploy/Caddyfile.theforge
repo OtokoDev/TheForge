@@ -1,0 +1,11 @@
+# Bloc à AJOUTER au Caddyfile existant (celui qui sert déjà nexis).
+# Prérequis : le conteneur Caddy doit être connecté au réseau Docker `proxy`
+# (cf. deployment.md) pour résoudre `theforge-app` par son nom.
+#
+# Remplace `theforge.mondomaine.fr` par ton domaine. HTTPS automatique (Let's Encrypt).
+# reverse_proxy gère nativement l'upgrade WebSocket (bus temps réel /ws/events).
+
+theforge.mondomaine.fr {
+	encode gzip zstd
+	reverse_proxy theforge-app:8080
+}

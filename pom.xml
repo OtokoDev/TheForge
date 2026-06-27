@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.micronaut.platform</groupId>
+        <artifactId>micronaut-parent</artifactId>
+        <version>5.0.0</version>
+    </parent>
+
+    <groupId>com.bryan.forge</groupId>
+    <artifactId>forge</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>forge-core</module>
+        <module>forge-security</module>
+        <module>forge-catalog</module>
+        <module>forge-business</module>
+        <module>forge-valuation</module>
+        <module>forge-ledger</module>
+        <module>forge-billing</module>
+        <module>forge-treasury</module>
+        <module>forge-notifications</module>
+        <module>forge-stats</module>
+        <module>forge-app</module>
+    </modules>
+
+    <properties>
+        <jdk.version>25</jdk.version>
+        <release.version>25</release.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+    </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-bom</artifactId>
+                <version>2.25.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Modules internes -->
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-catalog</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-business</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-valuation</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-ledger</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-billing</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-treasury</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-notifications</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bryan.forge</groupId>
+                <artifactId>forge-stats</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- Dépendances de test communes à tous les modules -->
+    <dependencies>
+        <dependency>
+            <groupId>io.micronaut.test</groupId>
+            <artifactId>micronaut-test-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+            <!--
+              Mockito sur JDK 26 (Temurin 26) : l'inline mock maker par défaut retransforme
+              la hiérarchie de types et échoue. On bascule sur le subclass mock maker
+              (fichier mockito-extensions/org.mockito.plugins.MockMaker dans chaque module
+              de test). net.bytebuddy.experimental=true autorise la génération de bytecode
+              sur ce JDK encore non officiellement supporté par ByteBuddy.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Dnet.bytebuddy.experimental=true</argLine>
+                    <!-- Tests @Tag("integration") (Testcontainers/Docker) hors build par défaut.
+                         Les lancer : mvn test -Dgroups=integration (Docker requis). -->
+                    <excludedGroups>integration</excludedGroups>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

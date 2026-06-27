@@ -1,0 +1,111 @@
+package com.bryan.forge.notifications.backend;
+
+import com.bryan.forge.billing.event.FactureValidatedEvent;
+import com.bryan.forge.billing.event.ShiftClosedEvent;
+import com.bryan.forge.billing.event.ShiftOpenedEvent;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.runtime.event.annotation.EventListener;
+import io.micronaut.scheduling.annotation.Async;
+import jakarta.inject.Singleton;
+
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Écoute les événements de domaine et émet les webhooks Discord (async, hors transaction).
+ * URLs en dur via variables d'env. Respecte le toggle par utilisateur (actorWebhooksEnabled).
+ */
+@Singleton
+public class DiscordWebhookListener {
+
+    private static final int GREEN = 5763719;
+    private static final int RED = 15548997;
+    private static final DateTimeFormatter HOUR =
+            DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("Europe/Paris"));
+
+    private final String shopUrl;
+    private final String ordersUrl;
+    private final WebhookService webhooks;
+
+    public DiscordWebhookListener(@Value("${DISCORD_WEBHOOK_SHOP:}") String shopUrl,
+                                  @Value("${DISCORD_WEBHOOK_ORDERS:}") String ordersUrl,
+                                  WebhookService webhooks) {
+        this.shopUrl = shopUrl;
+        this.ordersUrl = ordersUrl;
+        this.webhooks = webhooks;
+    }
+
+    @EventListener
+    @Async
+    void onShiftOpened(ShiftOpenedEvent e) {
+        if (!e.actorWebhooksEnabled()) return;
+        webhooks.send(shopUrl, "SHIFT_OPEN", embed("Prise de service", GREEN, List.of(
+                field("Forgeron", e.actorUsername()),
+                field("Business", e.businessName()),
+                field("Heure", HOUR.format(e.openedAt())))));
+    }
+
+    @EventListener
+    @Async
+    void onFactureValidated(FactureValidatedEvent e) {
+        if (!e.actorWebhooksEnabled()) return;
+        webhooks.send(ordersUrl, "FACTURE", embed("Facture #" + pad(e.numero()) + " validée", GREEN, List.of(
+                field("Forgeron", e.actorUsername()),
+                field("Total", money(e.totalAmount())),
+                field("Coût de revient", money(e.totalCost())),
+                field("Bénéfice", money(e.totalProfit())),
+                field("Part business", money(e.businessShare())),
+                field("Part forgeron", money(e.workerShare())))));
+    }
+
+    @EventListener
+    @Async
+    void onShiftClosed(ShiftClosedEvent e) {
+        if (!e.actorWebhooksEnabled()) return;
+        webhooks.send(shopUrl, "SHIFT_CLOSE", embed("Fin de service", RED, List.of(
+                field("Forgeron", e.actorUsername()),
+                field("Durée", duration(e.openedAt(), e.closedAt())),
+                field("Factures", String.valueOf(e.ordersCount())),
+                field("CA", money(e.totalSales())),
+                field("Bénéfice", money(e.totalProfit())),
+                field("Part business", money(e.businessShare())),
+                field("Part forgeron", money(e.workerShare())))));
+    }
+
+    // ── Helpers embed ───────────────────────────────────────────────────────
+
+    private static Map<String, Object> embed(String title, int color, List<Map<String, Object>> fields) {
+        return Map.of("embeds", List.of(Map.of(
+                "title", title,
+                "color", color,
+                "fields", fields,
+                "footer", Map.of("text", "Forge RP"),
+                "timestamp", Instant.now().toString())));
+    }
+
+    private static Map<String, Object> field(String name, String value) {
+        return Map.of("name", name, "value", value.isEmpty() ? "—" : value, "inline", true);
+    }
+
+    private static String money(long amount) {
+        return amount + " septims";
+    }
+
+    private static String money(BigDecimal amount) {
+        return amount.stripTrailingZeros().toPlainString() + " septims";
+    }
+
+    private static String pad(long numero) {
+        return String.format("%04d", numero);
+    }
+
+    private static String duration(Instant from, Instant to) {
+        long minutes = Duration.between(from, to).toMinutes();
+        return minutes >= 60 ? (minutes / 60) + "h " + (minutes % 60) + "min" : minutes + "min";
+    }
+}

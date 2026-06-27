@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bryan.forge</groupId>
+        <artifactId>forge</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>forge-app</artifactId>
+    <!--
+        Module runnable. Contient :
+        - Application.java (point d'entrée)
+        - application.properties (configuration)
+        - Migrations Flyway
+        Le front Next.js est déployé séparément (pur client de l'API, CORS).
+    -->
+    <packaging>${packaging}</packaging>
+
+    <properties>
+        <packaging>jar</packaging>
+        <micronaut.runtime>netty</micronaut.runtime>
+        <micronaut.test.resources.enabled>true</micronaut.test.resources.enabled>
+        <micronaut.aot.enabled>false</micronaut.aot.enabled>
+        <exec.mainClass>com.bryan.forge.Application</exec.mainClass>
+        <!-- `-Dskip.frontend=true` : compile back sans rebuild du front (itération rapide). -->
+        <skip.frontend>false</skip.frontend>
+    </properties>
+
+    <dependencies>
+        <!-- Modules internes -->
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-catalog</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-business</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-valuation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-ledger</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-billing</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-treasury</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-notifications</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bryan.forge</groupId>
+            <artifactId>forge-stats</artifactId>
+        </dependency>
+
+        <!-- Serveur HTTP -->
+        <dependency>
+            <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-http-server-netty</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <!-- Temps réel (WebSocket) : refresh live stock/catalogue/facturation. -->
+        <dependency>
+            <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-websocket</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <!-- /health pour healthcheck Docker / reverse-proxy -->
+        <dependency>
+            <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-management</artifactId>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Base de données -->
+        <dependency>
+            <groupId>io.micronaut.flyway</groupId>
+            <artifactId>micronaut-flyway</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.micronaut.sql</groupId>
+            <artifactId>micronaut-jdbc-hikari</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Client HTTP : requis au runtime (DiscordApiClient @Client). En scope test
+             il serait exclu du classpath d'exécution et l'intercepteur @Client manquerait. -->
+        <dependency>
+            <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-http-client</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.micronaut.testresources</groupId>
+            <artifactId>micronaut-test-resources-client</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                Build du front Next.js (export statique) puis copie dans les resources.
+                Lié à `generate-resources` : déclenché par `mvn compile` ET `mvn package`,
+                donc `mvn compile` embarque le front à jour. La copie va dans
+                src/main/resources/public (gitignoré) pour qu'un run IDE le serve aussi.
+                Itération back seule : `-Dskip.frontend=true` (utilise `npm run dev` pour le front).
+            -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.15.1</version>
+                <configuration>
+                    <workingDirectory>front</workingDirectory>
+                    <nodeVersion>v22.15.0</nodeVersion>
+                    <!-- Hors target/ : survit à `clean`, évite de re-télécharger Node. -->
+                    <installDirectory>${project.basedir}/.frontend</installDirectory>
+                    <skip>${skip.frontend}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-and-npm</id>
+                        <goals><goal>install-node-and-npm</goal></goals>
+                        <phase>generate-resources</phase>
+                    </execution>
+                    <execution>
+                        <id>npm-install</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>generate-resources</phase>
+                        <configuration><arguments>install</arguments></configuration>
+                    </execution>
+                    <execution>
+                        <id>npm-build</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>generate-resources</phase>
+                        <configuration><arguments>run build</arguments></configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <!-- Après npm-build (même phase, plugin déclaré après) : recopie l'export frais. -->
+                    <execution>
+                        <id>copy-front-export</id>
+                        <phase>generate-resources</phase>
+                        <goals><goal>copy-resources</goal></goals>
+                        <configuration>
+                            <skip>${skip.frontend}</skip>
+                            <outputDirectory>${project.basedir}/src/main/resources/public</outputDirectory>
+                            <resources>
+                                <resource><directory>front/out</directory></resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>io.micronaut.maven</groupId>
+                <artifactId>micronaut-maven-plugin</artifactId>
+                <configuration>
+                    <!--
+                        Resolver JDBC-PostgreSQL ajouté au classpath du serveur Test
+                        Resources (process séparé) : démarre un container Testcontainers
+                        et fournit datasources.default.* pendant les tests.
+                    -->
+                    <testResourcesDependencies>
+                        <dependency>
+                            <groupId>io.micronaut.testresources</groupId>
+                            <artifactId>micronaut-test-resources-jdbc-postgresql</artifactId>
+                        </dependency>
+                    </testResourcesDependencies>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths combine.self="override">
+                        <path>
+                            <groupId>io.micronaut</groupId>
+                            <artifactId>micronaut-inject-java</artifactId>
+                            <version>${micronaut.core.version}</version>
+                        </path>
+                        <path>
+                            <groupId>io.micronaut</groupId>
+                            <artifactId>micronaut-http-validation</artifactId>
+                            <version>${micronaut.core.version}</version>
+                        </path>
+                        <path>
+                            <groupId>io.micronaut.security</groupId>
+                            <artifactId>micronaut-security-processor</artifactId>
+                            <version>${micronaut.security.version}</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>io.micronaut</groupId>
+                                    <artifactId>micronaut-inject</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </path>
+                        <path>
+                            <groupId>io.micronaut.serde</groupId>
+                            <artifactId>micronaut-serde-processor</artifactId>
+                            <version>${micronaut.serialization.version}</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>io.micronaut</groupId>
+                                    <artifactId>micronaut-inject</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-Amicronaut.processing.group=com.bryan.forge</arg>
+                        <arg>-Amicronaut.processing.module=forge-app</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

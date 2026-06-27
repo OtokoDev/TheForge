@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <!-- Format type Nexis : date level [user] logger msg -->
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{user}] %logger{36} %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="com.bryan.forge" level="DEBUG"/>
+        <Logger name="com.bryan.forge.web" level="INFO"/>
+        <Root level="INFO">
+            <AppenderRef ref="STDOUT"/>
+        </Root>
+    </Loggers>
+</Configuration>

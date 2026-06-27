@@ -1,0 +1,4 @@
+# Mock maker « subclass » (proxy) au lieu de l'inline mock maker par défaut.
+# L'inline maker retransforme la hiérarchie de types via un agent, ce qui échoue
+# sous Temurin 26 ; le subclass maker génère une sous-classe et fonctionne.
+mock-maker-subclass

@@ -1,0 +1,107 @@
+package com.bryan.forge.billing.backend;
+
+import com.bryan.forge.billing.backend.dto.FactureDto;
+import com.bryan.forge.billing.datamodel.Facture;
+import com.bryan.forge.billing.datamodel.FactureLine;
+import com.bryan.forge.billing.datamodel.FactureStatus;
+import com.bryan.forge.billing.datarepository.FactureLineRepository;
+import com.bryan.forge.billing.datarepository.FactureRepository;
+import com.bryan.forge.billing.datarepository.SessionRepository;
+import com.bryan.forge.business.backend.BusinessAccessService;
+import com.bryan.forge.business.datamodel.Business;
+import com.bryan.forge.business.datarepository.BusinessRepository;
+import com.bryan.forge.catalog.datamodel.Item;
+import com.bryan.forge.catalog.datarepository.ItemRepository;
+import com.bryan.forge.ledger.backend.LedgerService;
+import com.bryan.forge.ledger.datamodel.Account;
+import com.bryan.forge.ledger.datamodel.AccountKind;
+import com.bryan.forge.ledger.datarepository.AccountRepository;
+import com.bryan.forge.valuation.datarepository.ProductRepository;
+import org.junit.jupiter.api.Test;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class FactureServiceTest {
+
+    private final FactureRepository factureRepo = mock(FactureRepository.class);
+    private final FactureLineRepository lineRepo = mock(FactureLineRepository.class);
+    private final SessionRepository sessionRepo = mock(SessionRepository.class);
+    private final ItemRepository itemRepo = mock(ItemRepository.class);
+    private final ProductRepository productRepo = mock(ProductRepository.class);
+    private final CostingService costingService = mock(CostingService.class);
+    private final TaxRateService taxRateService = mock(TaxRateService.class);
+    private final LedgerService ledgerService = mock(LedgerService.class);
+    private final AccountRepository accountRepo = mock(AccountRepository.class);
+    private final BusinessRepository businessRepo = mock(BusinessRepository.class);
+    private final BusinessAccessService access = mock(BusinessAccessService.class);
+    @SuppressWarnings("unchecked")
+    private final io.micronaut.context.event.ApplicationEventPublisher<Object> events =
+            mock(io.micronaut.context.event.ApplicationEventPublisher.class);
+    private final FactureService service = new FactureService(factureRepo, lineRepo, sessionRepo, itemRepo,
+            productRepo, costingService, taxRateService, ledgerService, accountRepo, businessRepo, access, events);
+
+    private final com.bryan.forge.core.datamodel.User actor = mock(com.bryan.forge.core.datamodel.User.class);
+    private final UUID biz = UUID.randomUUID();
+    private final UUID fid = UUID.randomUUID();
+    private final UUID itemX = UUID.randomUUID();
+    private final UUID stock = UUID.randomUUID();
+    private final UUID coffre = UUID.randomUUID();
+
+    @Test
+    void validation_arrondiParExces_split_etMouvements() {
+        Business business = mock(Business.class);
+        Facture facture = new Facture(biz, 1, UUID.randomUUID(), null, null);
+        // 3 × 0,1 = 0,3 → arrondi par excès = 1
+        FactureLine line = new FactureLine(fid, itemX, 3, new BigDecimal("0.1"));
+        Item septime = mock(Item.class);
+        when(septime.getId()).thenReturn(UUID.randomUUID());
+
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+        when(accountRepo.findById(stock)).thenReturn(Optional.of(new Account(biz, "Stock", AccountKind.STOCK)));
+        when(accountRepo.findById(coffre)).thenReturn(Optional.of(new Account(biz, "Coffre", AccountKind.COFFRE)));
+        when(lineRepo.findByFactureId(fid)).thenReturn(List.of(line));
+        when(costingService.costOf(biz, itemX)).thenReturn(BigDecimal.ZERO);
+        when(taxRateService.currentRate(biz)).thenReturn(new BigDecimal("0.5"));
+        when(itemRepo.findFirstBySystemTrue()).thenReturn(Optional.of(septime));
+        when(itemRepo.findAll()).thenReturn(List.of());
+
+        FactureDto dto = service.validate(actor, biz, fid, true, stock, coffre);
+
+        assertThat(dto.status()).isEqualTo(FactureStatus.VALIDEE);
+        assertThat(dto.totalAmount()).isEqualTo(1L);            // arrondi par excès
+        assertThat(dto.totalCost()).isEqualByComparingTo("0");
+        assertThat(dto.totalProfit()).isEqualByComparingTo("1");
+        assertThat(dto.businessShare()).isEqualByComparingTo("0.5");
+        assertThat(dto.workerShare()).isEqualByComparingTo("0.5");
+        // 1 mouvement marchandise + 1 mouvement septimes.
+        verify(ledgerService, times(2)).applyMovement(any(), any(), anyInt(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void refuseRevalidation() {
+        Business business = mock(Business.class);
+        Facture facture = new Facture(biz, 1, UUID.randomUUID(), null, null);
+        facture.setStatus(FactureStatus.VALIDEE);
+
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+        when(accountRepo.findById(stock)).thenReturn(Optional.of(new Account(biz, "Stock", AccountKind.STOCK)));
+        when(accountRepo.findById(coffre)).thenReturn(Optional.of(new Account(biz, "Coffre", AccountKind.COFFRE)));
+
+        assertThatThrownBy(() -> service.validate(actor, biz, fid, true, stock, coffre))
+                .isInstanceOf(IllegalStateException.class);
+    }
+}

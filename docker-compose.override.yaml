@@ -1,0 +1,9 @@
+# Surcharge LOCALE (dev) : construit l'image au lieu de la pull, et expose le port
+# directement (pas de Caddy en local). Docker Compose lit ce fichier automatiquement
+# en local. Sur le VPS, ce fichier n'est PAS déployé (cf. deployment.md).
+services:
+  app:
+    build: .
+    image: bryanguerin/theforge:local
+    ports:
+      - "127.0.0.1:8081:8080"

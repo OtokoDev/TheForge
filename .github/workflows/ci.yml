@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & compilation des tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 26 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '26'
+          cache: maven
+
+      # Le frontend-maven-plugin installe Node sous forge-app/.frontend (cf. pom) et
+      # les deps sous forge-app/front/node_modules — on les met en cache.
+      - name: Cache Node (frontend-maven-plugin)
+        uses: actions/cache@v4
+        with:
+          path: |
+            forge-app/.frontend
+            forge-app/front/node_modules
+          key: front-${{ runner.os }}-${{ hashFiles('forge-app/front/package.json') }}
+
+      - name: Fix mvnw permissions
+        run: chmod +x mvnw
+
+      # `verify -DskipTests` : build front (npm) + back + compile les sources de test
+      # (attrape les ruptures de signature) sans EXÉCUTER les tests. Les @MicronautTest
+      # (ex. StockConcurrencyTest, @Tag integration) exigent Docker/Postgres → exclus.
+      - name: Build + compilation des tests (front + back)
+        run: ./mvnw -B -ntp verify -DskipTests -Denforcer.skip=true

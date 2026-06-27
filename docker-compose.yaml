@@ -1,0 +1,58 @@
+# Déploiement TheForge : application all-in-one (front + back) en conteneur, branchée
+# sur le PostgreSQL qui tourne en SERVICE SYSTÈME sur l'hôte (base `theforge`, hors Docker).
+# Le reverse-proxy Caddy EXISTANT (celui de nexis) sert l'app via le réseau partagé `proxy`.
+#
+#   docker compose pull && docker compose up -d
+#   docker compose logs -f app
+#
+# Secrets/paramètres : fichier .env (voir .env.example). Cf. deployment.md.
+
+services:
+  app:
+    image: ${THEFORGE_IMAGE:-bryanguerin/theforge:latest}
+    container_name: theforge-app
+    # UID/GID du user hôte propriétaire des logs montés (id -u / id -g).
+    user: "${PUID:-1000}:${PGID:-1000}"
+    # Joindre le PostgreSQL système de l'hôte (host.docker.internal → passerelle hôte).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Bloque le profil dev (localhost). Seules les variables ci-dessous font foi.
+      MICRONAUT_ENVIRONMENTS: prod
+      # PostgreSQL = service système de l'hôte. Identifiants = user/base créés sur l'hôte.
+      DATASOURCES_DEFAULT_URL: jdbc:postgresql://host.docker.internal:5432/theforge
+      DATASOURCES_DEFAULT_USERNAME: ${POSTGRES_USER:-theforge}
+      DATASOURCES_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD:?définissez POSTGRES_PASSWORD dans .env}
+      # Secret JWT HS256 — OBLIGATOIRE, ≥ 32 caractères (openssl rand -base64 48).
+      JWT_GENERATOR_SIGNATURE_SECRET: ${JWT_GENERATOR_SIGNATURE_SECRET:?définissez un secret fort dans .env}
+      # OAuth2 Discord — OBLIGATOIRE (Discord Developer Portal).
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?définissez DISCORD_CLIENT_ID dans .env}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?définissez DISCORD_CLIENT_SECRET dans .env}
+      # Discord ID promu SYSTEM à la 1re connexion (optionnel).
+      FORGE_OWNER_DISCORD_ID: ${FORGE_OWNER_DISCORD_ID:-}
+      # Webhooks Discord (optionnels, sinon désactivés).
+      DISCORD_WEBHOOK_SHOP: ${DISCORD_WEBHOOK_SHOP:-}
+      DISCORD_WEBHOOK_ORDERS: ${DISCORD_WEBHOOK_ORDERS:-}
+      # Vide = front embarqué même origine (redirections relatives, pas de CORS).
+      FRONT_ORIGIN: ${FRONT_ORIGIN:-}
+      # Dossier des logs fichier (recouvert par le volume).
+      JAVA_OPTS: -DLOG_DIR=/logs ${JAVA_OPTS:-}
+    volumes:
+      # Logs persistés sur l'hôte.
+      - /opt/volumes/theforge/log:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - proxy
+    restart: unless-stopped
+
+# Réseau partagé avec le Caddy existant : Caddy proxifie `theforge-app:8080` par son nom.
+# À créer une fois sur le VPS :  docker network create proxy
+# puis connecter le conteneur Caddy :  docker network connect proxy <conteneur-caddy>
+networks:
+  proxy:
+    external: true

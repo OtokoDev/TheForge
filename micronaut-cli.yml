@@ -1,0 +1,6 @@
+applicationType: default
+defaultPackage: com.bryan.forge
+testFramework: junit
+sourceLanguage: java
+buildTool: maven
+features: [ app-name, assertj, data, data-jpa, flyway, hibernate-jpa, http-client-test, http-server-netty, java, java-application, jdbc-hikari, junit, log4j2, maven, maven-enforcer-plugin, micronaut-http-validation, micronaut-processing-compiler-args, mockito, postgres, properties, readme, security-jwt, security-oauth2, security-processor, serialization-jackson, test-resources ]

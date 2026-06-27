@@ -1,0 +1,2 @@
+-- Événements sans utilisateur connu (login échoué, événements système).
+ALTER TABLE activity_log ALTER COLUMN user_id DROP NOT NULL;
