@@ -55,6 +55,9 @@ public class TaxRateService {
         repo.findByBusinessIdAndValidToIsNull(businessId).ifPresent(currentRate -> {
             currentRate.setValidTo(Instant.now());
             repo.update(currentRate);
+            // Flush avant l'insert : Hibernate ordonne sinon INSERT avant UPDATE → 2 lignes
+            // courantes → viole uq_tax_rate_current.
+            repo.flush();
         });
         TaxRate taxRate = new TaxRate(businessId, rate);
         taxRate.setCreatedBy(actor.getId());
