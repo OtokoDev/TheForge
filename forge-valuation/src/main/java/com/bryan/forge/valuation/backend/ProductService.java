@@ -104,6 +104,9 @@ public class ProductService {
             com.bryan.forge.core.backend.StaleDataException.check(currentVal.getVersion(), version);
             currentVal.setValidTo(Instant.now());
             repo.update(currentVal);
+            // Pousser la clôture en base AVANT l'insert : Hibernate ordonne sinon les INSERT
+            // avant les UPDATE → 2 lignes courantes au flush → viole uq_valuation_current.
+            repo.flush();
         });
 
         Product product = new Product(businessId, itemId, valeurToStore, prixToStore);

@@ -147,11 +147,11 @@
     <build>
         <plugins>
             <!--
-                Build du front Next.js (export statique) puis copie dans les resources.
+                Build du front Svelte (Vite, export statique) embarqué dans les resources.
                 Lié à `generate-resources` : déclenché par `mvn compile` ET `mvn package`,
-                donc `mvn compile` embarque le front à jour. La copie va dans
-                src/main/resources/public (gitignoré) pour qu'un run IDE le serve aussi.
-                Itération back seule : `-Dskip.frontend=true` (utilise `npm run dev` pour le front).
+                donc `mvn compile` embarque le front à jour. Vite écrit DIRECTEMENT dans
+                src/main/resources/public (cf. vite.config.js `build.outDir`, gitignoré) — pas
+                de copie séparée. Itération back seule : `-Dskip.frontend=true` (`npm run dev` pour le front).
             -->
             <plugin>
                 <groupId>com.github.eirslett</groupId>
@@ -184,26 +184,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <executions>
-                    <!-- Après npm-build (même phase, plugin déclaré après) : recopie l'export frais. -->
-                    <execution>
-                        <id>copy-front-export</id>
-                        <phase>generate-resources</phase>
-                        <goals><goal>copy-resources</goal></goals>
-                        <configuration>
-                            <skip>${skip.frontend}</skip>
-                            <outputDirectory>${project.basedir}/src/main/resources/public</outputDirectory>
-                            <resources>
-                                <resource><directory>front/out</directory></resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <plugin>
                 <groupId>io.micronaut.maven</groupId>
                 <artifactId>micronaut-maven-plugin</artifactId>
