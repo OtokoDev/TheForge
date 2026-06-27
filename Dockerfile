@@ -27,7 +27,7 @@ RUN chmod +x mvnw && ./mvnw -B -ntp -pl forge-app -am dependency:go-offline -Dsk
 
 # Sources puis build complet (front + back).
 COPY . .
-RUN ./mvnw -B -ntp -pl forge-app -am clean package -DskipTests -Denforcer.skip=true \
+RUN chmod +x mvnw && ./mvnw -B -ntp -pl forge-app -am clean package -DskipTests -Denforcer.skip=true \
  && cp forge-app/target/forge-app-*.jar /workspace/app.jar
 
 # ─────────────────────────────────────────────────────────────────────────────
