@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.env
 
 # testing
 /coverage
@@ -40,3 +41,20 @@ dev-server*.log
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Java / Maven (backend Micronaut)
+target/
+.micronaut/
+*.iml
+*.ipr
+*.iws
+node/
+/logs/
+graphify-out/
+
+# Front Next.js embarqué (forge-app/front)
+forge-app/front/node_modules/
+forge-app/front/.next/
+forge-app/front/out/
+forge-app/src/main/resources/public/
+forge-app/.frontend/

@@ -1,0 +1,15 @@
+# Tout est rebuild dans l'image (front + back). On exclut les artefacts locaux.
+**/target/
+**/node_modules/
+forge-app/front/.next/
+forge-app/front/out/
+forge-app/src/main/resources/public/
+forge-app/.frontend/
+.git/
+.github/
+.idea/
+*.iml
+logs/
+OLD/
+graphify-out/
+.env
