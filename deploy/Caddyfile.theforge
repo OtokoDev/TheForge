@@ -1,11 +1,27 @@
-# Bloc à AJOUTER au Caddyfile existant (celui qui sert déjà nexis).
-# Prérequis : le conteneur Caddy doit être connecté au réseau Docker `proxy`
-# (cf. deployment.md) pour résoudre `theforge-app` par son nom.
+# Caddyfile CUSTOM du VPS = bloc Nexis EXISTANT (inchangé) + bloc TheForge.
+# But : ne pas casser le déploiement nexis. Mets ce fichier sur le VPS comme Caddyfile,
+# ou ajoute simplement le bloc « TheForge » ci-dessous à ton Caddyfile actuel.
 #
-# Remplace `theforge.mondomaine.fr` par ton domaine. HTTPS automatique (Let's Encrypt).
-# reverse_proxy gère nativement l'upgrade WebSocket (bus temps réel /ws/events).
+# TheForge est exposée sur l'hôte :6000 (cf. docker-compose). Deux cas :
+#   - Cloudflare proxifie directement vers VPS:6000  → le bloc Caddy ci-dessous est INUTILE.
+#   - Caddy fait le TLS pour TheForge aussi → garder le bloc, et ajouter au service caddy :
+#         extra_hosts:
+#           - "host.docker.internal:host-gateway"
+#     (pour que le conteneur Caddy joigne l'app sur le port hôte 6000).
 
-theforge.mondomaine.fr {
+{
+	email {$ACME_EMAIL}
+}
+
+# ── Nexis (inchangé — ne pas casser) ─────────────────────────────────────────
+{$NEXIS_DOMAIN} {
 	encode gzip zstd
-	reverse_proxy theforge-app:8080
+	reverse_proxy app:8080
+}
+
+# ── TheForge (à AJOUTER) ─────────────────────────────────────────────────────
+# reverse_proxy gère nativement l'upgrade WebSocket (bus temps réel /ws/events).
+{$FORGE_DOMAIN} {
+	encode gzip zstd
+	reverse_proxy host.docker.internal:6000
 }

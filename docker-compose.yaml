@@ -1,11 +1,12 @@
 # Déploiement TheForge : application all-in-one (front + back) en conteneur, branchée
 # sur le PostgreSQL qui tourne en SERVICE SYSTÈME sur l'hôte (base `theforge`, hors Docker).
-# Le reverse-proxy Caddy EXISTANT (celui de nexis) sert l'app via le réseau partagé `proxy`.
+# App exposée sur l'hôte :6000 → servie par Cloudflare et/ou le Caddy existant (host:6000).
+# Agent APM Glowroot monté depuis /opt/glowroot (UI sur 127.0.0.1:4000).
 #
-#   docker compose pull && docker compose up -d
+#   cd /home/forge/theforge && docker compose pull && docker compose up -d
 #   docker compose logs -f app
 #
-# Secrets/paramètres : fichier .env (voir .env.example). Cf. deployment.md.
+# Secrets/paramètres : fichier .env (voir deploy/env.example). Cf. deployment.md.
 
 services:
   app:
@@ -35,24 +36,22 @@ services:
       DISCORD_WEBHOOK_ORDERS: ${DISCORD_WEBHOOK_ORDERS:-}
       # Vide = front embarqué même origine (redirections relatives, pas de CORS).
       FRONT_ORIGIN: ${FRONT_ORIGIN:-}
-      # Dossier des logs fichier (recouvert par le volume).
-      JAVA_OPTS: -DLOG_DIR=/logs ${JAVA_OPTS:-}
+      # Agent Glowroot (APM, jar monté depuis l'hôte) + dossier des logs fichier.
+      JAVA_OPTS: -javaagent:/opt/glowroot/glowroot.jar -DLOG_DIR=/logs ${JAVA_OPTS:-}
     volumes:
       # Logs persistés sur l'hôte.
-      - /opt/volumes/theforge/log:/logs
+      - /opt/volumes/forge/log:/logs
+      # Agent Glowroot (jar + données) — rw : glowroot y écrit. Dossier à chown au user forge.
+      - /opt/glowroot:/opt/glowroot
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 60s
-    networks:
-      - proxy
+    ports:
+      # App exposée (Cloudflare devant). Hôte 6000 → 8080 conteneur.
+      - "6000:8080"
+      # UI Glowroot (monitoring) — localhost seulement (tunnel SSH/Cloudflare pour y accéder).
+      - "127.0.0.1:4000:4000"
     restart: unless-stopped
-
-# Réseau partagé avec le Caddy existant : Caddy proxifie `theforge-app:8080` par son nom.
-# À créer une fois sur le VPS :  docker network create proxy
-# puis connecter le conteneur Caddy :  docker network connect proxy <conteneur-caddy>
-networks:
-  proxy:
-    external: true
