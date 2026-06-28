@@ -2,7 +2,7 @@
   import { api, ApiError } from '../../lib/api.js'
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
 
-  let { businessId, factures, shiftOpen, shiftSince, canOperate, onNew, onOpenShift, onCloseShift, onChange } = $props()
+  let { businessId, factures, shiftOpen, shiftSince, canOperate, canAdmin, meId, onNew, onOpenShift, onCloseShift, onEdit, onChange } = $props()
 
   const ORANGE = '#E8590C', GREEN = '#5BBF73', RED = '#ed8472', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', BORDER = '1px solid rgba(255,255,255,0.07)'
@@ -13,6 +13,7 @@
   const th = `color:${MUTED}; font-weight:600; font-size:12px; letter-spacing:.03em; padding:13px 16px; border-bottom:${BORDER}; white-space:nowrap;`
   const btnPrimary = `background:${ORANGE}; border:none; color:#fff; font-size:12.5px; font-weight:700; padding:7px 12px; border-radius:8px; cursor:pointer;`
   const btnGhost = 'background:transparent; border:1px solid rgba(255,255,255,0.13); color:#cfc8c2; font-size:12.5px; font-weight:600; padding:7px 12px; border-radius:8px; cursor:pointer;'
+  const btnDanger = 'background:rgba(229,96,77,0.13); border:1px solid rgba(229,96,77,0.35); color:#ed8472; font-size:12.5px; font-weight:600; padding:7px 12px; border-radius:8px; cursor:pointer;'
 
   let query = $state('')
   let status = $state('today')
@@ -62,6 +63,12 @@
   async function encaisser(id) {
     try { await api(`/api/businesses/${businessId}/factures/${id}/pay`, { method: 'POST' }); notifySuccess('Encaissée'); onChange() } catch (e) { fail(e) }
   }
+  async function del(id) {
+    if (!confirm('Supprimer ce brouillon ? Action irréversible.')) return
+    try { await api(`/api/businesses/${businessId}/factures/${id}`, { method: 'DELETE' }); notifySuccess('Brouillon supprimé'); onChange() } catch (e) { fail(e) }
+  }
+  // Édition/suppression d'un brouillon : son créateur ou un admin du business.
+  const canEditDraft = (f) => canAdmin || f.createdBy === meId
 
   const dt = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   const since = (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -142,6 +149,10 @@
                   {#if canOperate}
                     <div style="display:flex; gap:8px;" role="presentation" onclick={(e) => e.stopPropagation()}>
                       {#if f.status === 'BROUILLON'}
+                        {#if canEditDraft(f)}
+                          <button onclick={() => onEdit(f)} style={btnGhost}>Modifier</button>
+                          <button onclick={() => del(f.id)} style={btnDanger}>Supprimer</button>
+                        {/if}
                         <button onclick={() => validate(f.id, true)} style={btnPrimary}>Émettre &amp; encaisser</button>
                         <button onclick={() => validate(f.id, false)} style={btnGhost}>Émettre à crédit</button>
                       {:else if !f.paid}

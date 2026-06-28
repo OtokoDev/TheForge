@@ -151,6 +151,60 @@ public class FactureService {
         return toDto(facture, lineRepo.findByFactureId(factureId), itemNames());
     }
 
+    /** Supprime une facture BROUILLON. Réservé au créateur ou à un admin du business. */
+    @Transactional
+    public void deleteDraft(User actor, UUID businessId, UUID factureId) {
+        requireBusiness(businessId);
+        access.requireOperate(actor, businessId);
+        Facture facture = requireFacture(factureId, businessId);
+        requireDraft(facture);
+        requireCreatorOrAdmin(actor, businessId, facture);
+        lineRepo.deleteByFactureId(factureId);
+        factureRepo.delete(facture);
+    }
+
+    /**
+     * Remplace les lignes (et le client) d'une facture BROUILLON — c'est l'édition du
+     * brouillon (ajout/retrait d'objets). Réservé au créateur ou à un admin.
+     */
+    @Transactional
+    public FactureDto replaceDraft(User actor, UUID businessId, UUID factureId, CreateFactureRequest req) {
+        requireBusiness(businessId);
+        access.requireOperate(actor, businessId);
+        Facture facture = requireFacture(factureId, businessId);
+        requireDraft(facture);
+        requireCreatorOrAdmin(actor, businessId, facture);
+        if (req.lines() == null || req.lines().isEmpty()) {
+            throw new IllegalArgumentException("Une facture doit avoir au moins une ligne");
+        }
+
+        facture.setClientName(blankToNull(req.clientName()));
+        facture.setClientNote(blankToNull(req.clientNote()));
+        factureRepo.update(facture);
+
+        lineRepo.deleteByFactureId(factureId);
+        for (CreateFactureLine line : req.lines()) {
+            if (line.quantity() <= 0) {
+                throw new IllegalArgumentException("Quantité invalide");
+            }
+            itemRepo.findById(line.itemId())
+                    .orElseThrow(() -> new NoSuchElementException("Item introuvable : " + line.itemId()));
+            BigDecimal price = line.unitPrice() != null && line.unitPrice().signum() >= 0
+                    ? line.unitPrice()
+                    : productRepo.findByBusinessIdAndItemIdAndValidToIsNull(businessId, line.itemId())
+                            .map(Product::getPrixRevente).filter(java.util.Objects::nonNull).orElse(BigDecimal.ZERO);
+            lineRepo.save(new FactureLine(factureId, line.itemId(), line.quantity(), price));
+        }
+        return toDto(facture, lineRepo.findByFactureId(factureId), itemNames());
+    }
+
+    /** Le créateur de la facture, ou un admin du business. */
+    private void requireCreatorOrAdmin(User actor, UUID businessId, Facture facture) {
+        if (!actor.getId().equals(facture.getCreatedBy())) {
+            access.requireAdmin(actor, businessId);
+        }
+    }
+
     /**
      * Valide la facture : fige prix + coûts, calcule les totaux (arrondi par excès à la
      * ligne), découpe le bénéfice selon la taxe, et génère atomiquement les mouvements
@@ -325,6 +379,6 @@ public class FactureService {
         return new FactureDto(f.getId(), f.getNumero(), f.getStatus(), f.isPaid(), f.getClientName(),
                 f.getTotalAmount(), f.getTotalCost(), f.getTotalProfit(), f.getTaxRateSnapshot(),
                 f.getBusinessShare(), f.getWorkerShare(), f.getClientNote(), f.getInternalNote(),
-                f.getCreatedAt(), f.getValidatedAt(), lineDtos);
+                f.getCreatedAt(), f.getValidatedAt(), f.getCreatedBy(), lineDtos);
     }
 }

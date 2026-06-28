@@ -1,5 +1,7 @@
 package com.bryan.forge.billing.backend;
 
+import com.bryan.forge.billing.backend.dto.CreateFactureLine;
+import com.bryan.forge.billing.backend.dto.CreateFactureRequest;
 import com.bryan.forge.billing.backend.dto.FactureDto;
 import com.bryan.forge.billing.datamodel.Facture;
 import com.bryan.forge.billing.datamodel.FactureLine;
@@ -131,6 +133,52 @@ class FactureServiceTest {
                 eq(MovementType.CONSUMPTION), eq("FACTURE"), eq(fid), any(), any());
         // L'objet fini n'est jamais sorti du stock
         verify(ledgerService, never()).applyMovement(any(), eq(itemX), anyInt(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void deleteDraft_createur_supprime() {
+        UUID creator = UUID.randomUUID();
+        when(actor.getId()).thenReturn(creator);
+        Facture facture = new Facture(biz, 1, creator, null, null); // BROUILLON par défaut
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+
+        service.deleteDraft(actor, biz, fid);
+
+        verify(lineRepo).deleteByFactureId(fid);
+        verify(factureRepo).delete(facture);
+        verify(access, never()).requireAdmin(actor, biz); // créateur → pas de contrôle admin
+    }
+
+    @Test
+    void deleteDraft_nonCreateur_exigeAdmin() {
+        when(actor.getId()).thenReturn(UUID.randomUUID());
+        Facture facture = new Facture(biz, 1, UUID.randomUUID(), null, null); // créé par un autre
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+
+        service.deleteDraft(actor, biz, fid);
+
+        verify(access).requireAdmin(actor, biz); // non-créateur → contrôle admin
+    }
+
+    @Test
+    void replaceDraft_remplaceLesLignes() {
+        UUID creator = UUID.randomUUID();
+        when(actor.getId()).thenReturn(creator);
+        Facture facture = new Facture(biz, 1, creator, null, null);
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+        when(itemRepo.findById(itemX)).thenReturn(Optional.of(mock(Item.class)));
+        when(productRepo.findByBusinessIdAndItemIdAndValidToIsNull(biz, itemX)).thenReturn(Optional.empty());
+        when(lineRepo.findByFactureId(fid)).thenReturn(List.of());
+        when(itemRepo.findAll()).thenReturn(List.of());
+
+        service.replaceDraft(actor, biz, fid,
+                new CreateFactureRequest(List.of(new CreateFactureLine(itemX, 2, null)), "Client", null));
+
+        verify(lineRepo).deleteByFactureId(fid);   // anciennes lignes effacées
+        verify(lineRepo).save(any(FactureLine.class)); // nouvelle ligne insérée
     }
 
     @Test

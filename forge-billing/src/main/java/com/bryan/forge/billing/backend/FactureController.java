@@ -8,6 +8,7 @@ import com.bryan.forge.business.backend.CurrentUser;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
@@ -51,6 +52,19 @@ public class FactureController {
     @Get("/{factureId}")
     public FactureDto get(UUID businessId, UUID factureId) {
         return factureService.get(currentUser.require(), businessId, factureId);
+    }
+
+    /** Édite un brouillon : remplace lignes + client (créateur ou admin). */
+    @Put("/{factureId}")
+    public FactureDto replace(UUID businessId, UUID factureId, @Body CreateFactureRequest req) {
+        return factureService.replaceDraft(currentUser.require(), businessId, factureId, req);
+    }
+
+    /** Supprime un brouillon (créateur ou admin). */
+    @Delete("/{factureId}")
+    @Status(HttpStatus.NO_CONTENT)
+    public void delete(UUID businessId, UUID factureId) {
+        factureService.deleteDraft(currentUser.require(), businessId, factureId);
     }
 
     @Put("/{factureId}/lines/{lineId}")

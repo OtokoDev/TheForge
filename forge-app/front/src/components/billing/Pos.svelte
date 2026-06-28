@@ -4,7 +4,8 @@
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
   import Fab from '../ui/Fab.svelte'
 
-  let { businessId, canOperate, onBack, onEmitted } = $props()
+  let { businessId, canOperate, edit = null, onBack, onEmitted } = $props()
+  const editId = edit?.id ?? null
 
   const ORANGE = '#E8590C', GREEN = '#5BBF73', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', INPUT_BG = '#15110e', BORDER = '1px solid rgba(255,255,255,0.07)', DEFAULT_CAT = '#7d90a6'
@@ -26,8 +27,8 @@
   let query = $state('')
   let fam = $state('all')
   let mat = $state('all')
-  let cart = $state({})
-  let client = $state('')
+  let cart = $state(edit ? Object.fromEntries(edit.lines.map((l) => [l.itemId, l.quantity])) : {})
+  let client = $state(edit?.clientName ?? '')
   let paid = $state(true)
 
   $effect(() => {
@@ -92,11 +93,17 @@
     if (Object.keys(cart).length === 0) return notifyError('Panier vide')
     const body = { lines: lines.map((l) => ({ itemId: l.id, quantity: l.qty })), clientName: client || null }
     try {
-      const created = await api(`/api/businesses/${businessId}/factures`, { method: 'POST', body: JSON.stringify(body) })
-      if (!asDraft) {
-        await api(`/api/businesses/${businessId}/factures/${created.id}/validate`, { method: 'POST', body: JSON.stringify({ paid }) })
+      let factureId = editId
+      if (editId) {
+        await api(`/api/businesses/${businessId}/factures/${editId}`, { method: 'PUT', body: JSON.stringify(body) })
+      } else {
+        const created = await api(`/api/businesses/${businessId}/factures`, { method: 'POST', body: JSON.stringify(body) })
+        factureId = created.id
       }
-      notifySuccess(asDraft ? 'Brouillon enregistré' : 'Facture émise')
+      if (!asDraft) {
+        await api(`/api/businesses/${businessId}/factures/${factureId}/validate`, { method: 'POST', body: JSON.stringify({ paid }) })
+      }
+      notifySuccess(asDraft ? (editId ? 'Brouillon mis à jour' : 'Brouillon enregistré') : 'Facture émise')
       onEmitted()
     } catch (e) {
       fail(e)
@@ -120,7 +127,7 @@
 <div>
   <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
     <button onclick={onBack} style="background:transparent; border:none; color:{MUTED}; font-size:13px; font-weight:600; cursor:pointer;">← Factures</button>
-    <div style="color:{TEXT}; font-size:20px; font-weight:700;">Nouvelle facture</div>
+    <div style="color:{TEXT}; font-size:20px; font-weight:700;">{editId ? `Modifier le brouillon #${String(edit.numero).padStart(4, '0')}` : 'Nouvelle facture'}</div>
   </div>
 
   <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
@@ -194,7 +201,7 @@
           style="width:100%; background:{ORANGE}; border:none; color:#fff; font-size:15px; font-weight:700; padding:14px; border-radius:11px; cursor:{canOperate ? 'pointer' : 'not-allowed'}; opacity:{canOperate ? 1 : 0.5}; box-shadow:0 6px 18px rgba(232,89,12,0.32);">
           {paid ? `Émettre & encaisser · ${fmt(total)} septims` : `Émettre (non payé) · ${fmt(total)} septims`}
         </button>
-        <button onclick={() => emit(true)} disabled={!canOperate} style="width:100%; margin-top:9px; background:transparent; border:1px solid rgba(255,255,255,0.12); color:#cfc8c2; font-size:13px; font-weight:600; padding:10px; border-radius:9px; cursor:pointer;">Enregistrer comme brouillon</button>
+        <button onclick={() => emit(true)} disabled={!canOperate} style="width:100%; margin-top:9px; background:transparent; border:1px solid rgba(255,255,255,0.12); color:#cfc8c2; font-size:13px; font-weight:600; padding:10px; border-radius:9px; cursor:pointer;">{editId ? 'Mettre à jour le brouillon' : 'Enregistrer comme brouillon'}</button>
       </div>
     </div>
   </div>

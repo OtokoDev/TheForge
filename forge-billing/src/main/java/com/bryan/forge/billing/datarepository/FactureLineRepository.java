@@ -11,4 +11,6 @@ import java.util.UUID;
 public interface FactureLineRepository extends JpaRepository<FactureLine, UUID> {
 
     List<FactureLine> findByFactureId(UUID factureId);
+
+    void deleteByFactureId(UUID factureId);
 }

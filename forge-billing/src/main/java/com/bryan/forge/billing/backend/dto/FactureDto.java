@@ -26,5 +26,6 @@ public record FactureDto(
         @Nullable String internalNote,
         Instant createdAt,
         @Nullable Instant validatedAt,
+        UUID createdBy,
         List<FactureLineDto> lines
 ) {}

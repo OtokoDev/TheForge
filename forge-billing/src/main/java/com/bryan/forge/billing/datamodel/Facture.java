@@ -113,4 +113,6 @@ public class Facture {
     public void setInternalNote(String internalNote)  { this.internalNote = internalNote; }
     public void setPaid(boolean paid)                 { this.paid = paid; }
     public void setValidatedAt(Instant validatedAt)   { this.validatedAt = validatedAt; }
+    public void setClientName(String clientName)      { this.clientName = clientName; }
+    public void setClientNote(String clientNote)      { this.clientNote = clientNote; }
 }
