@@ -60,7 +60,7 @@
         aria-current={isActive(item.href) ? 'page' : undefined}
         class="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition {isActive(item.href)
           ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
+          : 'text-sidebar-foreground/90 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
       >
         <Icon size={18} />
         <span class="truncate">{item.label}</span>
@@ -77,7 +77,7 @@
         aria-current={isActive(item.href) ? 'page' : undefined}
         class="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition {isActive(item.href)
           ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
+          : 'text-sidebar-foreground/90 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
       >
         <Icon size={18} />
         <span class="truncate">{item.label}</span>
