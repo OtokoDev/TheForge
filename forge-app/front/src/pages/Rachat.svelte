@@ -357,7 +357,7 @@
 
   <!-- ===== PANNEAU PAIEMENT ===== -->
   {#if payFarmer}
-    <div style="position:fixed;top:0;right:0;bottom:0;width:404px;background:{PANEL};border-left:1px solid rgba(255,255,255,0.1);box-shadow:-26px 0 55px rgba(0,0,0,0.45);display:flex;flex-direction:column;z-index:50;">
+    <div style="position:fixed;top:0;right:0;bottom:0;width:min(404px,100vw);background:{PANEL};border-left:1px solid rgba(255,255,255,0.1);box-shadow:-26px 0 55px rgba(0,0,0,0.45);display:flex;flex-direction:column;z-index:50;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:{BORDER};">
         <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;">Payer un farmeur</div>
         <button onclick={() => (payFarmer = null)} style="background:transparent;border:none;color:{MUTED};cursor:pointer;display:flex;padding:4px;"><X size={18} /></button>
