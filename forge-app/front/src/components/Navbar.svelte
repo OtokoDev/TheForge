@@ -1,4 +1,5 @@
 <script>
+  import { Menu } from '@lucide/svelte'
   import { LOGOUT_URL } from '../lib/api.js'
   import { me, businesses, currentBusinessId, currentLogo, shift, setCurrentBusiness } from '../lib/session.js'
   import { GLOBAL_ROLE_LABELS } from '../lib/roles.js'
@@ -6,6 +7,7 @@
   import Button from './ui/Button.svelte'
   import SelectField from './ui/SelectField.svelte'
 
+  let { onMenu = () => {} } = $props()
   let user = $derived($me.user)
   let displayName = $derived(user.inGameName ?? user.username)
   let initials = $derived(displayName.slice(0, 2).toUpperCase())
@@ -13,6 +15,14 @@
 
 <header class="flex min-h-16 items-center justify-between gap-3 border-b bg-background/75 px-4 backdrop-blur lg:px-8">
   <div class="flex items-center gap-3">
+    <button
+      onclick={onMenu}
+      aria-label="Ouvrir le menu"
+      class="flex size-9 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition hover:bg-muted hover:text-foreground lg:hidden"
+    >
+      <Menu size={20} />
+    </button>
+
     {#if $currentLogo}
       <img src={$currentLogo} alt="Logo du business" class="size-10 shrink-0 rounded-md border bg-muted object-contain" />
     {/if}

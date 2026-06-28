@@ -15,6 +15,7 @@
   // remet `me` à null → l'écran de login s'affiche automatiquement (plus de balade en 401).
   let loaded = $state(false)
   let errored = $state(false)
+  let mobileNav = $state(false)
 
   onMount(async () => {
     setUnauthorizedHandler(() => me.set(null))
@@ -45,9 +46,9 @@
 {:else}
   <div class="min-h-screen bg-background">
     <div class="flex">
-      <Sidebar />
+      <Sidebar open={mobileNav} onClose={() => (mobileNav = false)} />
       <div class="min-w-0 flex-1">
-        <Navbar />
+        <Navbar onMenu={() => (mobileNav = true)} />
         <PseudoWarning />
         <main class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8">
           <Router {routes} />

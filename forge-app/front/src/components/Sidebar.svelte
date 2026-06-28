@@ -7,6 +7,8 @@
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { canAdminBusiness, canStaffView } from '../lib/roles.js'
 
+  let { open = false, onClose = () => {} } = $props()
+
   const primaryBase = [
     { href: '/dashboard', label: 'Dashboard', icon: Gauge },
     { href: '/facturation', label: 'Facturation', icon: FileText },
@@ -20,9 +22,9 @@
 
   let isSystem = $derived($me.user.globalRole === 'SYSTEM')
   let canConfig = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
-
   // Créances réservées aux Compagnies (les forges n'ont pas de farmeurs à rembourser).
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
+
   let primary = $derived([
     ...primaryBase.filter((it) => it.href !== '/rachat' || isCompagnie),
     ...(canConfig ? [{ href: '/configuration', label: 'Configuration', icon: Settings }] : []),
@@ -38,48 +40,63 @@
   }
 </script>
 
+{#snippet navContent()}
+  <a href="#/dashboard" onclick={onClose} class="flex items-center gap-3 rounded-md px-2 py-1.5">
+    <div class="flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
+      <Hammer size={20} />
+    </div>
+    <div class="min-w-0">
+      <p class="truncate text-lg font-semibold leading-none">Forge</p>
+      <p class="truncate text-xs text-muted-foreground">Gestion atelier</p>
+    </div>
+  </a>
+
+  <nav class="mt-8 flex flex-col gap-1">
+    {#each primary as item (item.href)}
+      {@const Icon = item.icon}
+      <a
+        href={'#' + item.href}
+        onclick={onClose}
+        aria-current={isActive(item.href) ? 'page' : undefined}
+        class="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition {isActive(item.href)
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
+      >
+        <Icon size={18} />
+        <span class="truncate">{item.label}</span>
+      </a>
+    {/each}
+  </nav>
+
+  <nav class="mt-auto flex flex-col gap-1 border-t pt-4">
+    {#each secondary as item (item.href)}
+      {@const Icon = item.icon}
+      <a
+        href={'#' + item.href}
+        onclick={onClose}
+        aria-current={isActive(item.href) ? 'page' : undefined}
+        class="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition {isActive(item.href)
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
+      >
+        <Icon size={18} />
+        <span class="truncate">{item.label}</span>
+      </a>
+    {/each}
+  </nav>
+{/snippet}
+
+<!-- Desktop : barre latérale fixe -->
 <aside class="sticky top-0 hidden h-screen w-72 shrink-0 overflow-y-auto border-r bg-sidebar/80 px-4 py-5 lg:block">
-  <div class="flex min-h-full flex-col">
-    <a href="#/dashboard" class="flex items-center gap-3 rounded-md px-2 py-1.5">
-      <div class="flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Hammer size={20} />
-      </div>
-      <div class="min-w-0">
-        <p class="truncate text-lg font-semibold leading-none">Forge RP</p>
-        <p class="truncate text-xs text-muted-foreground">Gestion atelier</p>
-      </div>
-    </a>
-
-    <nav class="mt-8 flex flex-col gap-1">
-      {#each primary as item}
-        {@const Icon = item.icon}
-        <a
-          href={'#' + item.href}
-          aria-current={isActive(item.href) ? 'page' : undefined}
-          class="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition {isActive(item.href)
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
-        >
-          <Icon size={18} />
-          <span class="truncate">{item.label}</span>
-        </a>
-      {/each}
-    </nav>
-
-    <nav class="mt-auto flex flex-col gap-1 border-t pt-4">
-      {#each secondary as item}
-        {@const Icon = item.icon}
-        <a
-          href={'#' + item.href}
-          aria-current={isActive(item.href) ? 'page' : undefined}
-          class="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition {isActive(item.href)
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'}"
-        >
-          <Icon size={18} />
-          <span class="truncate">{item.label}</span>
-        </a>
-      {/each}
-    </nav>
-  </div>
+  <div class="flex min-h-full flex-col">{@render navContent()}</div>
 </aside>
+
+<!-- Mobile/tablette : tiroir coulissant -->
+{#if open}
+  <div class="fixed inset-0 z-50 lg:hidden">
+    <div class="absolute inset-0 bg-black/60" onclick={onClose} role="presentation"></div>
+    <aside class="absolute left-0 top-0 flex h-full w-72 flex-col overflow-y-auto border-r bg-sidebar px-4 py-5 shadow-2xl">
+      {@render navContent()}
+    </aside>
+  </div>
+{/if}
