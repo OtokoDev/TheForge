@@ -1,17 +1,24 @@
 <script>
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { canAdminBusiness } from '../lib/roles.js'
-  import PageHeader from '../components/PageHeader.svelte'
+  import SettingsLayout from '../components/layout/SettingsLayout.svelte'
   import LogoSection from '../components/business/LogoSection.svelte'
   import TaxSection from '../components/business/TaxSection.svelte'
   import AccountsSection from '../components/business/AccountsSection.svelte'
-  import DefaultsSection from '../components/business/DefaultsSection.svelte'
   import MembersSection from '../components/business/MembersSection.svelte'
 
   let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
+  const TABS = [
+    { separator: 'Atelier' },
+    { key: 'coffres', label: 'Coffres' },
+    { key: 'taxe', label: 'Taxe' },
+    { separator: 'Identité' },
+    { key: 'logo', label: 'Logo' },
+    { separator: 'Équipe' },
+    { key: 'membres', label: 'Membres' },
+  ]
+  let tab = $state('coffres')
 </script>
-
-<PageHeader title="Configuration" description="Paramètres du business courant (admin)." />
 
 {#if !$currentBusinessId}
   <p class="text-sm text-muted-foreground">Sélectionne un business (en haut) à configurer.</p>
@@ -19,13 +26,22 @@
   <p class="text-sm text-destructive">Réservé à l'administrateur de ce business.</p>
 {:else}
   {#key $currentBusinessId}
-    <div class="flex flex-col gap-6">
-      <p class="text-sm text-muted-foreground">Configuration de <strong>{$currentBusiness?.nom}</strong>.</p>
-      <LogoSection businessId={$currentBusinessId} />
-      <TaxSection businessId={$currentBusinessId} />
-      <AccountsSection businessId={$currentBusinessId} />
-      <DefaultsSection businessId={$currentBusinessId} />
-      <MembersSection businessId={$currentBusinessId} />
-    </div>
+    <SettingsLayout
+      title={`Configuration — ${$currentBusiness?.nom ?? ''}`}
+      subtitle="Paramètres du business courant (admin)."
+      tabs={TABS}
+      active={tab}
+      onSelect={(k) => (tab = k)}
+    >
+      {#if tab === 'coffres'}
+        <AccountsSection businessId={$currentBusinessId} />
+      {:else if tab === 'taxe'}
+        <TaxSection businessId={$currentBusinessId} />
+      {:else if tab === 'logo'}
+        <LogoSection businessId={$currentBusinessId} />
+      {:else if tab === 'membres'}
+        <MembersSection businessId={$currentBusinessId} />
+      {/if}
+    </SettingsLayout>
   {/key}
 {/if}

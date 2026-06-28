@@ -6,14 +6,18 @@
   import SettingsLayout from '../components/layout/SettingsLayout.svelte'
   import TaxonBoard from '../components/systeme/TaxonBoard.svelte'
   import BaseItemsBoard from '../components/systeme/BaseItemsBoard.svelte'
+  import BusinessAdmin from '../components/systeme/BusinessAdmin.svelte'
   import Button from '../components/ui/Button.svelte'
 
   const isSystem = $me.user.globalRole === 'SYSTEM'
   const TABS = [
+    { separator: 'Catalogue' },
     { key: 'familles', label: 'Familles' },
     { key: 'materiaux', label: 'Matériaux' },
     { key: 'objets', label: 'Objets de base' },
     { key: 'import', label: 'Import Skyrim' },
+    { separator: 'Organisation' },
+    { key: 'business', label: 'Business' },
   ]
   let tab = $state('familles')
   let families = $state([])
@@ -76,6 +80,8 @@
         </p>
         <Button onclick={runSeed}>Importer le seed Skyrim</Button>
       </div>
+    {:else if tab === 'business'}
+      <BusinessAdmin />
     {/if}
   </SettingsLayout>
 {/if}

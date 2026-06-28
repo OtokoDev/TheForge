@@ -2,7 +2,7 @@
   import { router } from 'svelte-spa-router'
   import {
     Gauge, FileText, ClipboardList, Hammer, Coins, ScrollText, ChartLine,
-    Package, Settings, Globe, Boxes, Shield, User,
+    Package, Settings, Globe, Boxes, User,
   } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { canAdminBusiness, canStaffView } from '../lib/roles.js'
@@ -30,7 +30,6 @@
   let secondary = $derived([
     ...(canStaffView($me) ? [{ href: '/staff', label: 'Vue staff', icon: Globe }] : []),
     ...(isSystem ? [{ href: '/systeme', label: 'Système', icon: Boxes }] : []),
-    ...(isSystem ? [{ href: '/admin', label: 'Administration', icon: Shield }] : []),
     { href: '/profil', label: 'Profil', icon: User },
   ])
 

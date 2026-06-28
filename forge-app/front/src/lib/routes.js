@@ -9,7 +9,6 @@ import Catalogue from '../pages/Catalogue.svelte'
 import Configuration from '../pages/Configuration.svelte'
 import Staff from '../pages/Staff.svelte'
 import Systeme from '../pages/Systeme.svelte'
-import Admin from '../pages/Admin.svelte'
 import Profil from '../pages/Profil.svelte'
 import AccessDenied from '../pages/AccessDenied.svelte'
 
@@ -27,7 +26,7 @@ export const routes = {
   '/configuration': Configuration,
   '/staff': Staff,
   '/systeme': Systeme,
-  '/admin': Admin,
+  '/admin': Systeme,
   '/profil': Profil,
   '/access-denied': AccessDenied,
   '*': Dashboard,
