@@ -285,6 +285,12 @@ public class LedgerService {
         return saved;
     }
 
+    /** Solde d'un item sur un compte (interne, sans contrôle d'accès — l'appelant l'a fait). */
+    @Transactional
+    public long balanceOf(UUID accountId, UUID itemId) {
+        return balanceMap(accountId).getOrDefault(itemId, 0L);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     /** Solde par item d'un compte = Σ(entrées vers le compte) − Σ(sorties du compte). */

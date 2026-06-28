@@ -3,6 +3,7 @@ package com.bryan.forge.catalog.backend;
 import com.bryan.forge.catalog.backend.dto.CreateItemRequest;
 import com.bryan.forge.catalog.backend.dto.ItemDto;
 import com.bryan.forge.catalog.backend.dto.RecipeComponentDto;
+import com.bryan.forge.catalog.backend.dto.RecipeEdgeDto;
 import com.bryan.forge.catalog.backend.dto.SetRecipeRequest;
 import com.bryan.forge.catalog.backend.dto.UpdateItemRequest;
 import io.micronaut.http.HttpStatus;
@@ -66,6 +67,12 @@ public class CatalogController {
     }
 
     // ── Recettes ──────────────────────────────────────────────────────────────
+
+    @Get("/recipes")
+    @Secured(SecurityRule.IS_AUTHENTICATED)
+    public List<RecipeEdgeDto> allRecipes() {
+        return recipeService.allRecipes();
+    }
 
     @Get("/items/{id}/recipe")
     @Secured(SecurityRule.IS_AUTHENTICATED)

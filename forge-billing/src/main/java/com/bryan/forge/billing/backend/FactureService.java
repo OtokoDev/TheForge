@@ -15,7 +15,9 @@ import com.bryan.forge.business.backend.BusinessAccessService;
 import com.bryan.forge.business.datamodel.Business;
 import com.bryan.forge.business.datarepository.BusinessRepository;
 import com.bryan.forge.catalog.datamodel.Item;
+import com.bryan.forge.catalog.datamodel.RecipeComponent;
 import com.bryan.forge.catalog.datarepository.ItemRepository;
+import com.bryan.forge.catalog.datarepository.RecipeComponentRepository;
 import com.bryan.forge.core.backend.ForbiddenException;
 import com.bryan.forge.core.datamodel.User;
 import com.bryan.forge.ledger.backend.LedgerService;
@@ -44,6 +46,7 @@ public class FactureService {
     private final FactureLineRepository lineRepo;
     private final SessionRepository sessionRepo;
     private final ItemRepository itemRepo;
+    private final RecipeComponentRepository recipeRepo;
     private final ProductRepository productRepo;
     private final CostingService costingService;
     private final TaxRateService taxRateService;
@@ -54,14 +57,15 @@ public class FactureService {
     private final ApplicationEventPublisher<Object> events;
 
     public FactureService(FactureRepository factureRepo, FactureLineRepository lineRepo, SessionRepository sessionRepo,
-                          ItemRepository itemRepo, ProductRepository productRepo, CostingService costingService,
-                          TaxRateService taxRateService, LedgerService ledgerService, AccountRepository accountRepo,
-                          BusinessRepository businessRepo, BusinessAccessService access,
+                          ItemRepository itemRepo, RecipeComponentRepository recipeRepo, ProductRepository productRepo,
+                          CostingService costingService, TaxRateService taxRateService, LedgerService ledgerService,
+                          AccountRepository accountRepo, BusinessRepository businessRepo, BusinessAccessService access,
                           ApplicationEventPublisher<Object> events) {
         this.factureRepo = factureRepo;
         this.lineRepo = lineRepo;
         this.sessionRepo = sessionRepo;
         this.itemRepo = itemRepo;
+        this.recipeRepo = recipeRepo;
         this.productRepo = productRepo;
         this.costingService = costingService;
         this.taxRateService = taxRateService;
@@ -213,10 +217,26 @@ public class FactureService {
         factureRepo.update(facture);
 
         // Mouvements (atomique) : marchandise OUT toujours ; septimes IN seulement si payée.
+        // Objet en stock → on sort l'objet fini. Sinon → forge à la demande : on consomme
+        // les ingrédients de la recette (1 niveau, les éléments de base). La garde stock
+        // négatif de applyMovement refuse la vente si un ingrédient manque (rollback).
         String ref = "Facture #" + facture.getNumero();
         for (FactureLine line : lines) {
-            ledgerService.applyMovement(businessId, line.getItemId(), line.getQuantity(),
-                    stock, null, MovementType.SALE, "FACTURE", factureId, ref, actor.getId());
+            long inStock = ledgerService.balanceOf(stock, line.getItemId());
+            if (inStock >= line.getQuantity()) {
+                ledgerService.applyMovement(businessId, line.getItemId(), line.getQuantity(),
+                        stock, null, MovementType.SALE, "FACTURE", factureId, ref, actor.getId());
+            } else {
+                List<RecipeComponent> recipe = recipeRepo.findByOutputItemId(line.getItemId());
+                if (recipe.isEmpty()) {
+                    throw new IllegalStateException("Stock insuffisant et aucune recette pour fabriquer l'objet vendu");
+                }
+                for (RecipeComponent rc : recipe) {
+                    ledgerService.applyMovement(businessId, rc.getComponentItem().getId(),
+                            rc.getQuantity() * line.getQuantity(), stock, null,
+                            MovementType.CONSUMPTION, "FACTURE", factureId, ref + " (forge)", actor.getId());
+                }
+            }
         }
         if (paid && totalAmount > 0) {
             ledgerService.applyMovement(businessId, septimeId(), (int) totalAmount,

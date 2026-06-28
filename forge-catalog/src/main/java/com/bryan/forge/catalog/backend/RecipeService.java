@@ -1,6 +1,7 @@
 package com.bryan.forge.catalog.backend;
 
 import com.bryan.forge.catalog.backend.dto.RecipeComponentDto;
+import com.bryan.forge.catalog.backend.dto.RecipeEdgeDto;
 import com.bryan.forge.catalog.backend.dto.RecipeLine;
 import com.bryan.forge.catalog.datamodel.Item;
 import com.bryan.forge.catalog.datamodel.RecipeComponent;
@@ -35,6 +36,14 @@ public class RecipeService {
     public List<RecipeComponentDto> getRecipe(UUID outputItemId) {
         requireItem(outputItemId);
         return recipeRepo.findByOutputItemId(outputItemId).stream().map(RecipeComponentDto::from).toList();
+    }
+
+    /** Toutes les arêtes de recette (output→composant) — le POS s'en sert pour « fabricable ». */
+    @Transactional
+    public List<RecipeEdgeDto> allRecipes() {
+        return recipeRepo.findAll().stream()
+                .map(rc -> new RecipeEdgeDto(rc.getOutputItem().getId(), rc.getComponentItem().getId(), rc.getQuantity()))
+                .toList();
     }
 
     /**

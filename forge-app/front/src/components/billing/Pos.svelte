@@ -22,6 +22,7 @@
   let items = $state([])
   let prices = $state(new Map())
   let stockQty = $state(new Map())
+  let recipes = $state(new Map()) // outputItemId → [{ componentItemId, quantity }]
   let query = $state('')
   let fam = $state('all')
   let mat = $state('all')
@@ -31,6 +32,16 @@
 
   $effect(() => {
     api('/api/catalog/items').then((v) => (items = v)).catch(fail)
+    api('/api/catalog/recipes')
+      .then((edges) => {
+        const m = new Map()
+        for (const e of edges) {
+          if (!m.has(e.outputItemId)) m.set(e.outputItemId, [])
+          m.get(e.outputItemId).push({ componentItemId: e.componentItemId, quantity: e.quantity })
+        }
+        recipes = m
+      })
+      .catch(fail)
     api(`/api/businesses/${businessId}/products`)
       .then((rows) => (prices = new Map(rows.filter((r) => r.prixRevente != null).map((r) => [r.itemId, r.prixRevente]))))
       .catch(fail)
@@ -43,10 +54,14 @@
       .catch(fail)
   })
 
+  // Disponible : en stock. Fabricable : pas en stock mais tous les ingrédients de la recette
+  // sont en stock (forgé à la vente côté backend). Sinon indisponible. `rank` sert au tri.
   function stateOf(it) {
-    if ((stockQty.get(it.id) ?? 0) > 0) return { label: 'Disponible', color: GREEN, bg: 'rgba(91,191,115,0.13)', sellable: true }
-    if (it.hasRecipe) return { label: 'Fabricable', color: '#d9a441', bg: 'rgba(217,164,65,0.13)', sellable: true }
-    return { label: 'Indisponible', color: '#E5604D', bg: 'rgba(229,96,77,0.13)', sellable: false }
+    if ((stockQty.get(it.id) ?? 0) > 0) return { label: 'Disponible', color: GREEN, bg: 'rgba(91,191,115,0.13)', sellable: true, rank: 0 }
+    const recipe = recipes.get(it.id)
+    if (recipe && recipe.length > 0 && recipe.every((c) => (stockQty.get(c.componentItemId) ?? 0) >= c.quantity))
+      return { label: 'Fabricable', color: '#d9a441', bg: 'rgba(217,164,65,0.13)', sellable: true, rank: 1 }
+    return { label: 'Indisponible', color: '#E5604D', bg: 'rgba(229,96,77,0.13)', sellable: false, rank: 2 }
   }
 
   let sellable = $derived(items.filter((i) => !i.system && prices.has(i.id)))
@@ -54,7 +69,9 @@
   let mats = $derived(dedupe(sellable, 'materialId', 'materialName'))
   let catalogue = $derived.by(() => {
     const q = query.trim().toLowerCase()
-    return sellable.filter((i) => (fam === 'all' || i.familyId === fam) && (mat === 'all' || i.materialId === mat) && (q === '' || i.name.toLowerCase().includes(q)))
+    return sellable
+      .filter((i) => (fam === 'all' || i.familyId === fam) && (mat === 'all' || i.materialId === mat) && (q === '' || i.name.toLowerCase().includes(q)))
+      .sort((a, b) => stateOf(a).rank - stateOf(b).rank || a.name.localeCompare(b.name))
   })
   let itemById = $derived(new Map(items.map((i) => [i.id, i])))
   let lines = $derived(Object.entries(cart).map(([id, qty]) => ({ id, item: itemById.get(id), qty })))
