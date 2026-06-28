@@ -225,7 +225,7 @@
       </div>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:15px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:15px;">
       {#each [{ l: 'Valeur du stock', v: `${fmt(kpis.value)} septims` }, { l: 'Objets en stock', v: fmt(kpis.qty) }, { l: 'Références', v: fmt(kpis.refs) }, { l: 'Coffres', v: fmt(kpis.chests) }] as k (k.l)}
         <div style="background:{CARD}; border:{BORDER}; border-radius:12px; padding:15px 17px;">
           <div style="color:{MUTED}; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">{k.l}</div>
@@ -298,7 +298,7 @@
     </div>
 
     {#if sel && !inventory}
-      <div style="position:fixed; top:0; right:0; bottom:0; width:386px; background:#1a1613; border-left:1px solid rgba(255,255,255,0.1); box-shadow:-26px 0 55px rgba(0,0,0,0.42); display:flex; flex-direction:column; z-index:50;">
+      <div style="position:fixed; top:0; right:0; bottom:0; width:min(386px,100vw); background:#1a1613; border-left:1px solid rgba(255,255,255,0.1); box-shadow:-26px 0 55px rgba(0,0,0,0.42); display:flex; flex-direction:column; z-index:50;">
         <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:{BORDER};">
           <div style="color:{MUTED}; font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Mouvement de stock</div>
           <button onclick={() => (sel = null)} style="background:transparent; border:none; color:{MUTED}; cursor:pointer; font-size:18px;">✕</button>

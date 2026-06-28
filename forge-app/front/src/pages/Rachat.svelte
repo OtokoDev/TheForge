@@ -192,9 +192,9 @@
       <div style="display:flex;align-items:center;gap:8px;color:{MUTED};font-size:12.5px;"><Info size={14} />Valorisé au coût de la matière</div>
     </div>
 
-    <div style="display:flex;gap:0;align-items:stretch;min-height:560px;">
+    <div style="display:flex;flex-wrap:wrap;gap:0 18px;align-items:stretch;min-height:560px;">
       <!-- catalogue -->
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;padding:18px 22px 4px 0;gap:13px;">
+      <div style="flex:1 1 320px;min-width:0;display:flex;flex-direction:column;padding:18px 0 4px;gap:13px;">
         <div style="position:relative;">
           <Search size={16} color={MUTED} style="position:absolute;left:11px;top:50%;transform:translateY(-50%);" />
           <input bind:value={rQuery} placeholder="Chercher une matière…" style="width:100%;background:{CARD};border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:{TEXT};font-size:13.5px;padding:10px 12px 10px 34px;outline:none;" />
@@ -205,7 +205,7 @@
             <button onclick={() => (rCat = c.id)} style="background:{active ? ORANGE : '#1f1d1b'};color:{active ? '#fff' : '#cfc8c2'};border:{active ? `1px solid ${ORANGE}` : '1px solid rgba(255,255,255,0.08)'};border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;">{c.nom}</button>
           {/each}
         </div>
-        <div style="flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-content:start;">
+        <div style="flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start;">
           {#each catalogue as p (p.id)}
             <button onclick={() => addMat(p.id)} style="text-align:left;background:{CARD};border:{BORDER};border-radius:11px;padding:13px;cursor:pointer;display:flex;flex-direction:column;gap:10px;">
               <div style="display:flex;align-items:center;gap:10px;">
@@ -225,7 +225,7 @@
       </div>
 
       <!-- lot -->
-      <div style="width:438px;flex:none;display:flex;flex-direction:column;background:{PANEL};border:{BORDER};border-radius:12px;">
+      <div style="width:438px;flex:1 1 360px;max-width:100%;display:flex;flex-direction:column;background:{PANEL};border:{BORDER};border-radius:12px;">
         <div style="padding:18px 20px 12px;">
           <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:9px;">Farmeur crédité</div>
           {#if rFarmer}<div style="color:{TEXT};font-size:13px;margin-bottom:8px;">Crédité : <strong>{rFarmer.inGameName ?? rFarmer.username}</strong></div>{/if}

@@ -104,8 +104,8 @@
     <div style="color:{TEXT}; font-size:20px; font-weight:700;">Nouvelle facture</div>
   </div>
 
-  <div style="display:flex; gap:16px; align-items:flex-start;">
-    <div style="flex:1; min-width:0;">
+  <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+    <div style="flex:1 1 340px; min-width:0;">
       <input bind:value={query} placeholder="Chercher un article du catalogue…" style="width:100%; background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:10px 12px; outline:none; margin-bottom:12px;" />
       {@render filterRow('Famille', fam, (v) => (fam = v), fams)}
       {@render filterRow('Matériau', mat, (v) => (mat = v), mats)}
@@ -133,7 +133,7 @@
       </div>
     </div>
 
-    <div style="width:400px; flex:none; background:#171513; border:{BORDER}; border-radius:12px; display:flex; flex-direction:column;">
+    <div style="width:400px; flex:1 1 340px; max-width:100%; background:#171513; border:{BORDER}; border-radius:12px; display:flex; flex-direction:column;">
       <div style="padding:16px 18px 10px;">
         <div style="color:{MUTED}; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:8px;">Client</div>
         <input bind:value={client} placeholder="Client de passage (optionnel)" style="width:100%; background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:10px 12px; outline:none;" />
