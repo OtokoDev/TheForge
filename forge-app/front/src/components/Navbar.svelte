@@ -1,6 +1,6 @@
 <script>
   import { LOGOUT_URL } from '../lib/api.js'
-  import { me, businesses, currentBusinessId, shift, setCurrentBusiness } from '../lib/session.js'
+  import { me, businesses, currentBusinessId, currentLogo, shift, setCurrentBusiness } from '../lib/session.js'
   import { GLOBAL_ROLE_LABELS } from '../lib/roles.js'
   import Badge from './ui/Badge.svelte'
   import Button from './ui/Button.svelte'
@@ -12,10 +12,9 @@
 
 <header class="flex min-h-16 items-center justify-between gap-3 border-b bg-background/75 px-4 backdrop-blur lg:px-8">
   <div class="flex items-center gap-3">
-    <div class="hidden sm:block">
-      <p class="text-sm text-muted-foreground">Forge RP</p>
-      <h1 class="text-xl font-semibold">Tableau de bord</h1>
-    </div>
+    {#if $currentLogo}
+      <img src={$currentLogo} alt="Logo du business" class="size-10 shrink-0 rounded-md border bg-muted object-contain" />
+    {/if}
 
     {#if $businesses.length === 0}
       <span class="text-xs text-muted-foreground">Aucun business</span>

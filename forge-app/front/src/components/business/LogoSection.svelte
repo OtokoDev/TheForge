@@ -1,6 +1,7 @@
 <script>
   import { Trash2 } from '@lucide/svelte'
   import { api, ApiError } from '../../lib/api.js'
+  import { currentBusinessId, currentLogo } from '../../lib/session.js'
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
   import Card from '../ui/Card.svelte'
   import CardHeader from '../ui/CardHeader.svelte'
@@ -23,6 +24,7 @@
     try {
       const l = await api(`/api/businesses/${businessId}/logo`, { method: 'PUT', body: JSON.stringify({ dataUrl: value }) })
       dataUrl = l.dataUrl
+      if (businessId === $currentBusinessId) currentLogo.set(l.dataUrl) // navbar à jour direct
       notifySuccess('Logo mis à jour')
     } catch (e) {
       fail(e)

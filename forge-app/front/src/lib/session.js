@@ -9,6 +9,7 @@ export const me = writable(null)
 export const businesses = writable([])
 export const currentBusinessId = writable(null)
 export const currentBusiness = writable(null)
+export const currentLogo = writable(null)
 export const shift = writable(null)
 
 const STORAGE_KEY = 'forge.currentBusiness'
@@ -32,6 +33,18 @@ export function setCurrentBusiness(id) {
   if (id) localStorage.setItem(STORAGE_KEY, id)
   subscribeBusiness(id)
   refreshShift()
+  loadLogo(id)
+}
+
+/** Charge le logo du business courant (affiché dans la navbar). */
+export function loadLogo(id) {
+  if (!id) {
+    currentLogo.set(null)
+    return
+  }
+  api(`/api/businesses/${id}/logo`)
+    .then((l) => currentLogo.set(l.dataUrl))
+    .catch(() => currentLogo.set(null))
 }
 
 /** Recharge le poste courant (prise de service) pour le business sélectionné. */
