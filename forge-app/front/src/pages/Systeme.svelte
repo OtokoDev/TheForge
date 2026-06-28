@@ -7,6 +7,7 @@
   import TaxonBoard from '../components/systeme/TaxonBoard.svelte'
   import BaseItemsBoard from '../components/systeme/BaseItemsBoard.svelte'
   import BusinessAdmin from '../components/systeme/BusinessAdmin.svelte'
+  import JournalTimeline from '../components/JournalTimeline.svelte'
   import Button from '../components/ui/Button.svelte'
 
   const isSystem = $me.user.globalRole === 'SYSTEM'
@@ -18,6 +19,8 @@
     { key: 'import', label: 'Import Skyrim' },
     { separator: 'Organisation' },
     { key: 'business', label: 'Business' },
+    { separator: 'Activité' },
+    { key: 'audit', label: 'Audit' },
   ]
   let tab = $state('familles')
   let families = $state([])
@@ -82,6 +85,8 @@
       </div>
     {:else if tab === 'business'}
       <BusinessAdmin />
+    {:else if tab === 'audit'}
+      <JournalTimeline path="/api/system/activity" title="Audit système" subtitle="Connexions, comptes, rôles et événements système (non fonctionnels)." />
     {/if}
   </SettingsLayout>
 {/if}
