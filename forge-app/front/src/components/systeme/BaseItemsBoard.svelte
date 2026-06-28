@@ -1,9 +1,11 @@
 <script>
+  import { Plus } from '@lucide/svelte'
   import { api, ApiError } from '../../lib/api.js'
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
   import Button from '../ui/Button.svelte'
   import Input from '../ui/Input.svelte'
   import SelectField from '../ui/SelectField.svelte'
+  import Modal from '../ui/Modal.svelte'
   import ItemRow from './ItemRow.svelte'
 
   let { items, families, materials, onChanged } = $props()
@@ -19,6 +21,7 @@
   let query = $state('')
   let famFilter = $state('')
   let matFilter = $state('')
+  let showCreate = $state(false)
 
   async function createItem() {
     if (!name.trim()) return
@@ -28,6 +31,7 @@
         body: JSON.stringify({ name: name.trim(), familyId: familyId || null, materialId: materialId || null, handRequired: hand || null }),
       })
       name = ''
+      showCreate = false
       notifySuccess('Item créé')
       onChanged()
     } catch (e) {
@@ -47,16 +51,22 @@
 </script>
 
 <div class="flex flex-col gap-4">
-  <div class="rounded-md border p-3">
-    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nouvel objet de base</p>
-    <div class="flex flex-wrap items-center gap-2">
-      <Input class="max-w-xs" placeholder="Nom de l'item" bind:value={name} />
+  <div class="flex justify-end">
+    <Button onclick={() => (showCreate = true)}><Plus size={16} /> Nouvel objet</Button>
+  </div>
+
+  <Modal bind:open={showCreate} title="Nouvel objet de base">
+    <div class="flex flex-col gap-3">
+      <Input placeholder="Nom de l'item" bind:value={name} />
       <SelectField value={familyId} onChange={(v) => (familyId = v)} options={opts(families, 'Famille : —')} />
       <SelectField value={materialId} onChange={(v) => (materialId = v)} options={opts(materials, 'Matériau : —')} />
       <SelectField value={hand} onChange={(v) => (hand = v)} options={HAND_OPTIONS} />
-      <Button onclick={createItem}>Créer</Button>
+      <div class="flex justify-end gap-2">
+        <Button variant="outline" onclick={() => (showCreate = false)}>Annuler</Button>
+        <Button onclick={createItem}>Créer</Button>
+      </div>
     </div>
-  </div>
+  </Modal>
 
   <div class="flex flex-wrap items-center gap-2">
     <Input class="max-w-xs" placeholder="Rechercher…" bind:value={query} />

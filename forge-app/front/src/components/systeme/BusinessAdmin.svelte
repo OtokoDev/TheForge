@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte'
+  import { Plus } from '@lucide/svelte'
   import { api, ApiError } from '../../lib/api.js'
   import { notifySuccess, notifyError } from '../../lib/notifications.js'
   import Card from '../ui/Card.svelte'
@@ -10,10 +11,12 @@
   import Button from '../ui/Button.svelte'
   import Badge from '../ui/Badge.svelte'
   import SelectField from '../ui/SelectField.svelte'
+  import Modal from '../ui/Modal.svelte'
 
   let businesses = $state([])
   let nom = $state('')
   let type = $state('FORGE')
+  let showCreate = $state(false)
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
 
   async function load() {
@@ -37,6 +40,7 @@
         /* business créé quand même ; le coffre se configure à la main */
       }
       nom = ''
+      showCreate = false
       notifySuccess('Business créé (coffre principal initialisé)')
       load()
     } catch (e) {
@@ -46,10 +50,13 @@
 </script>
 
 <div class="flex flex-col gap-4">
-  <Card>
-    <CardHeader><CardTitle>Créer un business</CardTitle></CardHeader>
-    <CardContent class="flex flex-wrap items-center gap-2">
-      <Input class="max-w-xs" placeholder="Nom du business" bind:value={nom} />
+  <div class="flex justify-end">
+    <Button onclick={() => (showCreate = true)}><Plus size={16} /> Nouveau business</Button>
+  </div>
+
+  <Modal bind:open={showCreate} title="Créer un business">
+    <div class="flex flex-col gap-3">
+      <Input placeholder="Nom du business" bind:value={nom} />
       <SelectField
         value={type}
         onChange={(v) => (type = v)}
@@ -58,9 +65,12 @@
           { value: 'COMPAGNIE', label: 'COMPAGNIE' },
         ]}
       />
-      <Button onclick={createBusiness}>Créer</Button>
-    </CardContent>
-  </Card>
+      <div class="flex justify-end gap-2">
+        <Button variant="outline" onclick={() => (showCreate = false)}>Annuler</Button>
+        <Button onclick={createBusiness}>Créer</Button>
+      </div>
+    </div>
+  </Modal>
 
   <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
     {#each businesses as b (b.id)}
