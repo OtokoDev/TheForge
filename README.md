@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Forge de Markarth
 
-## Getting Started
+Application de gestion d'**économie roleplay Skyrim** : forge, échoppe, stock, ventes et
+trésorerie pour les activités d'un serveur Discord. Monnaie : **septims**.
 
-First, run the development server:
+Monolithe modulaire **Micronaut** (Java) + front **Svelte 5** embarqué dans un **jar unique**
+(aucun Node au runtime). Authentification **Discord OAuth2**.
+
+## Stack
+
+- **Back** : Micronaut 5, JDK 26 (cible release 25), PostgreSQL + Flyway, Micronaut Security
+  (JWT cookie, OAuth2 Discord), WebSocket temps réel.
+- **Front** : Svelte 5 + Vite, routing `svelte-spa-router` (hash), Tailwind v4. Export statique
+  embarqué dans les ressources du back, servi par Micronaut.
+- **Package** : `com.bryan.forge`.
+
+## Architecture
+
+Monolithe modulaire (Maven multi-module). Chaque module suit le découpage
+`datamodel` (JPA) / `datarepository` (Micronaut Data) / `backend` (services + contrôleurs).
+
+| Module | Rôle |
+|---|---|
+| `forge-core` | Entités/services transverses (User, audit, rôles, denylist ban). |
+| `forge-security` | OAuth2 Discord, mapping JWT. |
+| `forge-catalog` | Catalogue global : items, familles, matériaux, recettes (SYSTEM). |
+| `forge-business` | Business (forge/compagnie), membres, activité. |
+| `forge-valuation` | Produits par business : valeur (coût) + prix de revente (historisés). |
+| `forge-ledger` | Coffres/comptes + journal de mouvements (stock, septims). |
+| `forge-billing` | Facturation, sessions de service, taxe. |
+| `forge-treasury` | Créances : rachat de matières aux farmeurs, paiements. |
+| `forge-stats` | Statistiques (CA, marge, produits, forgerons, stock, créances…). |
+| `forge-notifications` | Webhooks Discord. |
+| `forge-app` | Assemblage : config, sécurité, WebSocket, **front Svelte embarqué**. |
+
+## Pré-requis
+
+- **JDK 26** (build en release 25). Lancer via `./mvnw` (le wrapper utilise `JAVA_HOME`).
+- **PostgreSQL** local (base `theforge`).
+- **Node** : géré automatiquement par le `frontend-maven-plugin` au build ; pour le dev front
+  rapide, un Node local suffit.
+
+### Base de données (dev)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+psql -U postgres -c "CREATE DATABASE theforge;"
+# identifiants dev dans forge-app/src/main/resources/application-dev.properties
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Développement
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Tout-en-un (front embarqué, servi par le back sur :8080)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+./mvnw -pl forge-app -am compile     # build + embarque le front Svelte dans les ressources
+# puis démarrer l'app depuis l'IDE (profil dev actif par défaut)
+```
 
-## Learn More
+### Front en rechargement à chaud (Vite :5173)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm --prefix forge-app/front install
+npm --prefix forge-app/front run dev   # proxifie /api, /oauth, /ws vers le back :8080
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> L'authentification (cookie OAuth) fonctionne sur l'origine embarquée `:8080`. Le serveur
+> Vite `:5173` sert au dev visuel ; pour tester le flux de connexion complet, utilise `:8080`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Itération back seule
 
-## Deploy on Vercel
+```bash
+./mvnw -pl forge-app -am compile -Dskip.frontend=true   # ne rebuild pas le front
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Build
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+./mvnw -pl forge-app -am clean package -DskipTests
+# → forge-app/target/forge-app-*.jar : jar all-in-one (front + back)
+java -jar forge-app/target/forge-app-*.jar
+```
+
+Le `frontend-maven-plugin` (phase `generate-resources`) lance `vite build`, qui écrit l'export
+directement dans `forge-app/src/main/resources/public` (embarqué au jar).
+
+## Tests
+
+```bash
+./mvnw test     # tests unitaires (le groupe "integration" est exclu par défaut)
+```
+
+Les tests d'intégration (Testcontainers PostgreSQL) sont tagués `integration` et nécessitent Docker.
+
+## Configuration (prod)
+
+Variables d'environnement (cf. `deploy/env.example`) :
+
+- `DATASOURCES_DEFAULT_URL/USERNAME/PASSWORD` — PostgreSQL.
+- `JWT_GENERATOR_SIGNATURE_SECRET` — secret HS256 (≥ 32 caractères).
+- `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` — OAuth2 Discord.
+- `FORGE_OWNER_DISCORD_ID` — Discord ID promu SYSTEM à la 1re connexion (optionnel).
+
+## Déploiement
+
+CI/CD GitHub Actions → image Docker Hub → SSH VPS → `docker compose up -d`. Détails et fichiers
+dans **[deployment.md](deployment.md)** (`Dockerfile`, `docker-compose.yaml`, Caddy, secrets).
