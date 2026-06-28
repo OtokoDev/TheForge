@@ -7,6 +7,7 @@
   import { routes } from './lib/routes.js'
   import Sidebar from './components/Sidebar.svelte'
   import Navbar from './components/Navbar.svelte'
+  import PseudoWarning from './components/PseudoWarning.svelte'
   import ToastHost from './components/ToastHost.svelte'
   import Login from './pages/Login.svelte'
 
@@ -47,6 +48,7 @@
       <Sidebar />
       <div class="min-w-0 flex-1">
         <Navbar />
+        <PseudoWarning />
         <main class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8">
           <Router {routes} />
         </main>

@@ -85,7 +85,9 @@
     {:else}
       {#each members as m (m.userId)}
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <span class="text-sm">{m.username}</span>
+          <span class="text-sm">
+            {#if m.inGameName}{m.inGameName} <span class="text-muted-foreground">(@{m.username})</span>{:else}@{m.username}{/if}
+          </span>
           <div class="flex items-center gap-2">
             <SelectField value={m.role} onChange={(v) => changeRole(m.userId, v, m.version)} options={ROLE_OPTS} />
             <Button variant="ghost" size="icon" onclick={() => remove(m.userId)}><Trash2 size={16} /></Button>

@@ -4,6 +4,7 @@
   import { GLOBAL_ROLE_LABELS } from '../lib/roles.js'
   import Badge from './ui/Badge.svelte'
   import Button from './ui/Button.svelte'
+  import SelectField from './ui/SelectField.svelte'
 
   let user = $derived($me.user)
   let displayName = $derived(user.inGameName ?? user.username)
@@ -19,16 +20,12 @@
     {#if $businesses.length === 0}
       <span class="text-xs text-muted-foreground">Aucun business</span>
     {:else}
-      <select
-        aria-label="Business courant"
-        class="h-9 rounded-md border bg-input/30 px-3 text-sm"
+      <SelectField
+        ariaLabel="Business courant"
         value={$currentBusinessId ?? ''}
-        onchange={(e) => setCurrentBusiness(e.currentTarget.value)}
-      >
-        {#each $businesses as b}
-          <option value={b.id}>{b.nom}</option>
-        {/each}
-      </select>
+        onChange={(v) => setCurrentBusiness(v)}
+        options={$businesses.map((b) => ({ value: b.id, label: b.nom }))}
+      />
     {/if}
 
     {#if $shift?.open}

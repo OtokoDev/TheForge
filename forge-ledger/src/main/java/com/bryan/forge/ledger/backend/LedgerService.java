@@ -96,6 +96,24 @@ public class LedgerService {
         return AccountDto.from(accountRepo.save(new Account(businessId, name.trim(), kind)));
     }
 
+    /** Supprime un coffre s'il est VIDE (aucun item, toutes quantités à 0) et n'est pas le principal. */
+    @Transactional
+    public void deleteAccount(User actor, UUID businessId, UUID accountId) {
+        requireBusiness(businessId);
+        access.requireAdmin(actor, businessId);
+        requireAccount(accountId, businessId);
+        Business b = businessRepo.findById(businessId)
+                .orElseThrow(() -> new NoSuchElementException("Business introuvable : " + businessId));
+        if (accountId.equals(b.getDefaultStockAccountId()) || accountId.equals(b.getDefaultCoffreAccountId())) {
+            throw new IllegalStateException("Impossible de supprimer le coffre principal — désigne-en un autre d'abord.");
+        }
+        boolean nonEmpty = balanceMap(accountId).values().stream().anyMatch(v -> v != 0);
+        if (nonEmpty) {
+            throw new IllegalStateException("Le coffre doit être vide (toutes les quantités à 0) avant suppression.");
+        }
+        accountRepo.deleteById(accountId);
+    }
+
     // ── Projections ─────────────────────────────────────────────────────────
 
     /** Soldes par item d'un compte (projection ; on n'expose que les soldes non nuls). */

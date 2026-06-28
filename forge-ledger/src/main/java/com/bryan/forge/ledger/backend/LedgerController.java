@@ -14,6 +14,7 @@ import com.bryan.forge.ledger.backend.dto.StockRowDto;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
@@ -53,6 +54,12 @@ public class LedgerController {
     @Status(HttpStatus.CREATED)
     public AccountDto createAccount(UUID businessId, @Body CreateAccountRequest req) {
         return ledger.createAccount(currentUser.require(), businessId, req.name(), req.kind());
+    }
+
+    @Delete("/accounts/{accountId}")
+    @Status(HttpStatus.NO_CONTENT)
+    public void deleteAccount(UUID businessId, UUID accountId) {
+        ledger.deleteAccount(currentUser.require(), businessId, accountId);
     }
 
     @Get("/accounts/{accountId}/balances")

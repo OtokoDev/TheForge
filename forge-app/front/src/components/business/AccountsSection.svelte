@@ -1,5 +1,5 @@
 <script>
-  import { Star } from '@lucide/svelte'
+  import { Star, Trash2 } from '@lucide/svelte'
   import { api, ApiError } from '../../lib/api.js'
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
   import Card from '../ui/Card.svelte'
@@ -34,6 +34,17 @@
       await api(`/api/businesses/${businessId}/accounts`, { method: 'POST', body: JSON.stringify({ name: name.trim(), kind }) })
       name = ''
       notifySuccess('Coffre créé')
+      load()
+    } catch (e) {
+      fail(e)
+    }
+  }
+
+  async function remove(a) {
+    if (!window.confirm(`Supprimer le coffre « ${a.name} » ?\nIl doit être vide (toutes les quantités à 0).`)) return
+    try {
+      await api(`/api/businesses/${businessId}/accounts/${a.id}`, { method: 'DELETE' })
+      notifySuccess('Coffre supprimé')
       load()
     } catch (e) {
       fail(e)
@@ -78,7 +89,12 @@
             </button>
             <span class="text-sm">{a.name}</span>
           </div>
-          <Badge variant="outline">{KIND_LABEL[a.kind] ?? a.kind}</Badge>
+          <div class="flex items-center gap-2">
+            <Badge variant="outline">{KIND_LABEL[a.kind] ?? a.kind}</Badge>
+            {#if a.id !== defaultId}
+              <button onclick={() => remove(a)} title="Supprimer (si vide)" class="text-muted-foreground transition hover:text-destructive"><Trash2 size={15} /></button>
+            {/if}
+          </div>
         </div>
       {/each}
     {/if}

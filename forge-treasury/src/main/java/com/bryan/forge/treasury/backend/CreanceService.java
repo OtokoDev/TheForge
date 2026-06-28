@@ -97,7 +97,7 @@ public class CreanceService {
         }
         audit.record(businessId, actor.getId(), "CREANCE_DEPOT",
                 "Dépôt " + farmer.getUsername() + " — " + amount + " or (" + lines.size() + " ligne(s))");
-        return balance(businessId, farmerUserId, farmer.getUsername());
+        return balance(businessId, farmerUserId, farmer.getUsername(), farmer.getInGameName());
     }
 
     /** Paiement d'un farmeur : septimes sortis du coffre (garde solde négatif) + entrée PAIEMENT. */
@@ -120,7 +120,7 @@ public class CreanceService {
         repo.save(new CreanceEntry(businessId, farmerUserId, CreanceType.PAIEMENT, amount, reference, actor.getId()));
         audit.record(businessId, actor.getId(), "CREANCE_PAIEMENT",
                 "Paiement " + farmer.getUsername() + " — " + amount + " or");
-        return balance(businessId, farmerUserId, farmer.getUsername());
+        return balance(businessId, farmerUserId, farmer.getUsername(), farmer.getInGameName());
     }
 
     /** Soldes de tous les farmeurs ayant une créance dans le business. */
@@ -136,14 +136,14 @@ public class CreanceService {
             else a[1] += e.getAmount();
         }
 
-        Map<UUID, String> names = new HashMap<>();
+        Map<UUID, User> users = new HashMap<>();
         return agg.entrySet().stream()
                 .map(en -> {
-                    String name = names.computeIfAbsent(en.getKey(),
-                            id -> userRepo.findById(id).map(User::getUsername).orElse("?"));
+                    User u = users.computeIfAbsent(en.getKey(), id -> userRepo.findById(id).orElse(null));
                     long credit = en.getValue()[0];
                     long paid = en.getValue()[1];
-                    return new CreanceFarmerDto(en.getKey(), name, credit, paid, credit - paid);
+                    return new CreanceFarmerDto(en.getKey(), u != null ? u.getUsername() : "?",
+                            u != null ? u.getInGameName() : null, credit, paid, credit - paid);
                 })
                 .sorted(Comparator.comparingLong(CreanceFarmerDto::remaining).reversed())
                 .toList();
@@ -165,14 +165,14 @@ public class CreanceService {
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private CreanceFarmerDto balance(UUID businessId, UUID farmerUserId, String username) {
+    private CreanceFarmerDto balance(UUID businessId, UUID farmerUserId, String username, String inGameName) {
         long credit = 0;
         long paid = 0;
         for (CreanceEntry e : repo.findByBusinessIdAndFarmerUserIdOrderByCreatedAtDesc(businessId, farmerUserId)) {
             if (e.getType() == CreanceType.CREDIT) credit += e.getAmount();
             else paid += e.getAmount();
         }
-        return new CreanceFarmerDto(farmerUserId, username, credit, paid, credit - paid);
+        return new CreanceFarmerDto(farmerUserId, username, inGameName, credit, paid, credit - paid);
     }
 
     private void requireBusiness(UUID businessId) {

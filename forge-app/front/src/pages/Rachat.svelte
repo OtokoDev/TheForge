@@ -132,11 +132,11 @@
       })
       notifySuccess('Rachat enregistré')
       const fid = rFarmer.id
-      const fname = rFarmer.inGameName ?? rFarmer.username
       view = 'registre'
       cart = {}
       await refresh()
-      if (thenPay) openPay({ farmerUserId: fid, farmerUsername: fname, remaining: farmers.find((f) => f.farmerUserId === fid)?.remaining ?? 0 })
+      const fr = farmers.find((f) => f.farmerUserId === fid)
+      if (thenPay && fr) openPay(fr)
     } catch (e) {
       fail(e)
     }
@@ -228,6 +228,7 @@
       <div style="width:438px;flex:none;display:flex;flex-direction:column;background:{PANEL};border:{BORDER};border-radius:12px;">
         <div style="padding:18px 20px 12px;">
           <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:9px;">Farmeur crédité</div>
+          {#if rFarmer}<div style="color:{TEXT};font-size:13px;margin-bottom:8px;">Crédité : <strong>{rFarmer.inGameName ?? rFarmer.username}</strong></div>{/if}
           <UserAutocomplete onSelect={(u) => (rFarmer = u)} placeholder="@pseudo ou nom en jeu…" />
         </div>
         <div style="flex:1;min-height:0;overflow:auto;padding:4px 20px;">
@@ -327,8 +328,11 @@
             <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
               <td style="padding:11px 16px;">
                 <div style="display:flex;align-items:center;gap:11px;">
-                  <div style="width:32px;height:32px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:12.5px;flex:none;">{initials(f.farmerUsername)}</div>
-                  <div style="color:{TEXT};font-weight:600;">{f.farmerUsername}</div>
+                  <div style="width:32px;height:32px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:12.5px;flex:none;">{initials(f.farmerInGameName ?? f.farmerUsername)}</div>
+                  <div style="line-height:1.25;">
+                    <div style="color:{TEXT};font-weight:600;">{f.farmerInGameName ?? f.farmerUsername}</div>
+                    {#if f.farmerInGameName}<div style="color:{MUTED};font-size:12px;">@{f.farmerUsername}</div>{/if}
+                  </div>
                 </div>
               </td>
               <td style="padding:11px 16px;text-align:right;color:#9a938c;">{fmt(f.totalCredit)}</td>
@@ -359,8 +363,11 @@
         <button onclick={() => (payFarmer = null)} style="background:transparent;border:none;color:{MUTED};cursor:pointer;display:flex;padding:4px;"><X size={18} /></button>
       </div>
       <div style="padding:18px;display:flex;gap:13px;align-items:center;">
-        <div style="width:46px;height:46px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:17px;flex:none;">{initials(payFarmer.farmerUsername)}</div>
-        <div style="color:{TEXT};font-size:17px;font-weight:700;">{payFarmer.farmerUsername}</div>
+        <div style="width:46px;height:46px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:17px;flex:none;">{initials(payFarmer.farmerInGameName ?? payFarmer.farmerUsername)}</div>
+        <div style="line-height:1.3;">
+          <div style="color:{TEXT};font-size:17px;font-weight:700;">{payFarmer.farmerInGameName ?? payFarmer.farmerUsername}</div>
+          {#if payFarmer.farmerInGameName}<div style="color:{MUTED};font-size:12.5px;">@{payFarmer.farmerUsername}</div>{/if}
+        </div>
       </div>
       <div style="margin:0 18px;background:#15110e;border:1px solid rgba(232,89,12,0.3);border-radius:11px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
         <span style="color:{MUTED};font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Solde dû</span>
