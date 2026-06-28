@@ -5,6 +5,7 @@
   import { onRealtime } from '../lib/realtime.js'
   import { canAdminBusiness, canOperateBusiness } from '../lib/roles.js'
   import { notifyError, notifySuccess } from '../lib/notifications.js'
+  import NumberInput from '../components/ui/NumberInput.svelte'
 
   const ORANGE = '#E8590C', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', INPUT_BG = '#15110e'
@@ -279,8 +280,7 @@
               <td style="{tdNum}{inventory ? ' color:#9a938c;' : ''}">{fmt(r.quantity)}</td>
               {#if inventory}
                 <td style="padding:6px 14px; text-align:right;" onclick={(e) => e.stopPropagation()}>
-                  <input value={cVal ?? ''} oninput={(e) => setCount(key, e.currentTarget.value)} type="number"
-                    style="width:74px; background:{INPUT_BG}; border:1px solid {ecart !== 0 && cVal ? 'rgba(232,89,12,0.6)' : 'rgba(255,255,255,0.12)'}; border-radius:7px; color:{TEXT}; font-size:13px; font-weight:700; text-align:right; padding:6px 9px; outline:none; font-variant-numeric:tabular-nums;" />
+                  <NumberInput variant="dark" class="w-24" value={cVal ?? ''} onchange={(v) => setCount(key, v)} />
                 </td>
               {/if}
               {#if inventory}
@@ -341,7 +341,7 @@
 
           <label style="display:block;">
             <div style="color:{MUTED}; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:8px;">Quantité</div>
-            <input bind:value={qty} type="number" min="1" placeholder="0" style="width:100%; background:{INPUT_BG}; border:1px solid rgba(255,255,255,0.12); border-radius:9px; color:{TEXT}; font-size:18px; font-weight:700; text-align:center; padding:8px; outline:none;" />
+            <NumberInput variant="dark" class="w-full" value={qty} onchange={(v) => (qty = v)} min={1} />
             <div style="display:flex; gap:7px; margin-top:9px;">
               {#each [1, 10, 100] as d (d)}<button onclick={() => (qty = String((Number(qty) || 0) + d))} style={quickBtn}>+{d}</button>{/each}
               {#if selRow}<button onclick={() => (qty = String(selRow.quantity))} style={quickBtn}>Max</button>{/if}

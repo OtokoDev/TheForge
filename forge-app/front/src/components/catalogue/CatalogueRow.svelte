@@ -1,6 +1,7 @@
 <script>
   import { api, ApiError } from '../../lib/api.js'
   import { notifyError, toast } from '../../lib/notifications.js'
+  import NumberInput from '../ui/NumberInput.svelte'
 
   let { businessId, item, product, cost, canEdit, onSaved } = $props()
 
@@ -58,14 +59,14 @@
     {#if item.hasRecipe}
       <span style="color:{MUTED};">{cost != null ? `${fmt(cost)} (calc.)` : '—'}</span>
     {:else if canEdit}
-      <input type="number" min="0" step="0.1" bind:value={valeur} onblur={save} style={inputStyle} />
+      <NumberInput variant="dark" class="w-28" value={valeur} onchange={(v) => (valeur = v)} onblur={save} min={0} />
     {:else}
       <span>{product?.valeur != null ? fmt(product.valeur) : '—'}</span>
     {/if}
   </td>
   <td style={tdR}>
     {#if canEdit}
-      <input type="number" min="0" step="0.1" bind:value={prix} onblur={save} style={inputStyle} />
+      <NumberInput variant="dark" class="w-28" value={prix} onchange={(v) => (prix = v)} onblur={save} min={0} />
     {:else}
       <span style="color:{product?.prixRevente != null ? TEXT : MUTED};">{product?.prixRevente != null ? fmt(product.prixRevente) : 'non vendable'}</span>
     {/if}
