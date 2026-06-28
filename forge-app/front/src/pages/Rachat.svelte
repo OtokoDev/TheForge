@@ -1,45 +1,52 @@
 <script>
-  import { Trash2 } from '@lucide/svelte'
+  import { Search, Plus, ChevronLeft, Info, Check, X, Boxes } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { api, ApiError } from '../lib/api.js'
-  import { formatMoney, formatDateTime } from '../lib/format.js'
   import { canOperateBusiness } from '../lib/roles.js'
   import { notifySuccess, notifyError } from '../lib/notifications.js'
   import UserAutocomplete from '../components/admin/UserAutocomplete.svelte'
-  import NumberInput from '../components/ui/NumberInput.svelte'
-  import Card from '../components/ui/Card.svelte'
-  import CardHeader from '../components/ui/CardHeader.svelte'
-  import CardTitle from '../components/ui/CardTitle.svelte'
-  import CardContent from '../components/ui/CardContent.svelte'
-  import Input from '../components/ui/Input.svelte'
-  import Button from '../components/ui/Button.svelte'
-  import Badge from '../components/ui/Badge.svelte'
-  import SelectField from '../components/ui/SelectField.svelte'
+
+  const ORANGE = '#E8590C', SOFT = '#f5a06a', TEXT = '#F4F1EE', MUTED = '#8f8880'
+  const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', PANEL = '#1a1613'
+  const INPUT_BG = '#15110e', BORDER = '1px solid rgba(255,255,255,0.07)', DEFAULT_CAT = '#7d90a6'
+  const fmt = (n) => Number(n ?? 0).toLocaleString('fr-FR')
+  const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
+  const initials = (n) => {
+    const w = (n ?? '?').trim().split(/[ \-_@]/).filter(Boolean)
+    return ((w[0] || '?').charAt(0) + (w[1] || '').charAt(0)).toUpperCase()
+  }
 
   let canOperate = $derived($currentBusinessId ? canOperateBusiness($me, $currentBusinessId) : false)
 
+  let view = $state('registre') // 'registre' | 'caisse'
   let farmers = $state([])
   let items = $state([])
+  let costs = $state(new Map())
   let defaults = $state({ stockAccountId: null, coffreAccountId: null })
-  let openFarmer = $state(null)
-  let entries = $state([])
 
-  let depFarmer = $state(null)
-  let depKey = $state(0)
-  let lines = $state([])
-  let depMotif = $state('')
-  let payFarmer = $state(null)
-  let payKey = $state(1)
-  let amount = $state('')
-  let payMotif = $state('')
+  // registre
+  let query = $state('')
+  let filter = $state('credit') // credit | all | solde
+  let sort = $state({ key: 'solde', dir: 'desc' })
 
-  const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
+  // panneau paiement
+  let payFarmer = $state(null) // {farmerUserId, farmerUsername, remaining}
+  let payAmount = $state('')
+  let payEntries = $state([])
+
+  // caisse de rachat
+  let rFarmer = $state(null) // UserSummary {id, username, inGameName}
+  let rQuery = $state('')
+  let rCat = $state('all')
+  let cart = $state({}) // itemId -> qty
+  let rMotif = $state('')
 
   function load() {
     const id = $currentBusinessId
     if (!id) return
     api(`/api/businesses/${id}/creances`).then((v) => (farmers = v)).catch(fail)
     api('/api/catalog/items').then((rows) => (items = rows.filter((i) => !i.system))).catch(fail)
+    api(`/api/businesses/${id}/costs`).then((rows) => (costs = new Map(rows.map((c) => [c.itemId, c.cost])))).catch(fail)
     api(`/api/businesses/${id}/defaults`).then((v) => (defaults = v)).catch(fail)
   }
   $effect(() => {
@@ -47,167 +54,340 @@
     load()
   })
 
-  let totalDue = $derived(farmers.reduce((s, f) => s + f.remaining, 0))
-  let itemOptions = $derived([{ value: '', label: 'Objet…' }, ...items.map((it) => ({ value: it.id, label: it.name }))])
+  // ── KPIs ──
+  let totalDu = $derived(farmers.reduce((t, f) => t + f.remaining, 0))
+  let crediteurs = $derived(farmers.filter((f) => f.remaining > 0).length)
+  let totalRachat = $derived(farmers.reduce((t, f) => t + f.totalCredit, 0))
+  let totalPaye = $derived(farmers.reduce((t, f) => t + f.totalPaid, 0))
 
-  function showEntries(fid) {
-    if (openFarmer === fid) {
-      openFarmer = null
-      return
-    }
-    openFarmer = fid
-    api(`/api/businesses/${$currentBusinessId}/creances/${fid}/entries`).then((v) => (entries = v)).catch(fail)
+  // ── registre rows ──
+  let rows = $derived.by(() => {
+    const q = query.trim().toLowerCase()
+    let r = farmers.filter((f) => {
+      if (filter === 'credit') return f.remaining > 0
+      if (filter === 'solde') return f.remaining === 0
+      return true
+    })
+    if (q) r = r.filter((f) => f.farmerUsername.toLowerCase().includes(q))
+    const dir = sort.dir === 'asc' ? 1 : -1
+    return [...r].sort((a, b) => {
+      if (sort.key === 'name') return a.farmerUsername.localeCompare(b.farmerUsername) * dir
+      if (sort.key === 'rachat') return (a.totalCredit - b.totalCredit) * dir
+      if (sort.key === 'paye') return (a.totalPaid - b.totalPaid) * dir
+      return (a.remaining - b.remaining) * dir
+    })
+  })
+  const arrow = (k) => (sort.key === k ? (sort.dir === 'asc' ? '▲' : '▼') : '')
+  function toggleSort(k) {
+    sort = sort.key === k ? { key: k, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'desc' }
   }
+  const chips = $derived([
+    { id: 'credit', l: 'Créditeurs', c: farmers.filter((f) => f.remaining > 0).length },
+    { id: 'all', l: 'Tous', c: farmers.length },
+    { id: 'solde', l: 'Soldés', c: farmers.filter((f) => f.remaining === 0).length },
+  ])
 
-  function addLine() {
-    lines = [...lines, { itemId: items[0]?.id ?? '', quantity: 1 }]
+  // ── caisse : catalogue ──
+  function dedupeFam(list) {
+    const m = new Map()
+    for (const i of list) if (i.familyId && i.familyName) m.set(i.familyId, i.familyName)
+    return Array.from(m, ([id, nom]) => ({ id, nom }))
   }
-  function removeLine(i) {
-    lines = lines.filter((_, j) => j !== i)
-  }
-  function setLineItem(i, v) {
-    lines = lines.map((l, j) => (j === i ? { ...l, itemId: v } : l))
-  }
-  function setLineQty(i, v) {
-    lines = lines.map((l, j) => (j === i ? { ...l, quantity: Number(v) } : l))
-  }
+  let fams = $derived(dedupeFam(items))
+  let catalogue = $derived.by(() => {
+    const q = rQuery.trim().toLowerCase()
+    return items.filter((i) => (rCat === 'all' || i.familyId === rCat) && (q === '' || i.name.toLowerCase().includes(q)))
+  })
+  let itemById = $derived(new Map(items.map((i) => [i.id, i])))
+  let lot = $derived(Object.entries(cart).map(([id, qty]) => ({ id, item: itemById.get(id), qty, cost: costs.get(id) ?? 0 })))
+  let rTotal = $derived(lot.reduce((t, l) => t + l.cost * l.qty, 0))
+  let rUnits = $derived(lot.reduce((t, l) => t + l.qty, 0))
 
-  async function deposit() {
-    if (!depFarmer) return notifyError('Choisis un farmeur')
-    if (lines.length === 0 || lines.some((l) => !l.itemId || l.quantity <= 0)) return notifyError('Ajoute au moins une ligne valide')
-    if (!defaults.stockAccountId) return notifyError('Aucun compte stock par défaut (Configuration)')
+  function addMat(id) {
+    cart = { ...cart, [id]: (cart[id] ?? 0) + 1 }
+  }
+  function incMat(id, d) {
+    const c = { ...cart }
+    c[id] = (c[id] ?? 0) + d
+    if (c[id] <= 0) delete c[id]
+    cart = c
+  }
+  function openCaisse(farmer) {
+    rFarmer = farmer ? { id: farmer.farmerUserId, username: farmer.farmerUsername, inGameName: null } : null
+    rQuery = ''
+    rCat = 'all'
+    cart = {}
+    rMotif = ''
+    view = 'caisse'
+  }
+  async function deposit(thenPay) {
+    if (!rFarmer) return notifyError('Choisis un farmeur')
+    const lines = lot.map((l) => ({ itemId: l.id, quantity: l.qty }))
+    if (lines.length === 0) return notifyError('Ajoute au moins une matière')
+    if (!defaults.stockAccountId) return notifyError('Aucun coffre principal (Configuration)')
     try {
       await api(`/api/businesses/${$currentBusinessId}/creances/deposit`, {
         method: 'POST',
-        body: JSON.stringify({ farmerUserId: depFarmer.id, lines, stockAccountId: defaults.stockAccountId, reference: depMotif || null }),
+        body: JSON.stringify({ farmerUserId: rFarmer.id, lines, stockAccountId: defaults.stockAccountId, reference: rMotif || null }),
       })
-      notifySuccess('Dépôt enregistré')
-      depFarmer = null
-      depKey += 2
-      lines = []
-      depMotif = ''
-      load()
+      notifySuccess('Rachat enregistré')
+      const fid = rFarmer.id
+      const fname = rFarmer.inGameName ?? rFarmer.username
+      view = 'registre'
+      cart = {}
+      await refresh()
+      if (thenPay) openPay({ farmerUserId: fid, farmerUsername: fname, remaining: farmers.find((f) => f.farmerUserId === fid)?.remaining ?? 0 })
     } catch (e) {
       fail(e)
     }
   }
 
-  async function payment() {
-    if (!payFarmer) return notifyError('Choisis un farmeur')
-    const n = Number(amount)
+  // ── paiement ──
+  function openPay(f) {
+    payFarmer = f
+    payAmount = ''
+    payEntries = []
+    api(`/api/businesses/${$currentBusinessId}/creances/${f.farmerUserId}/entries`).then((v) => (payEntries = v)).catch(fail)
+  }
+  function solderTout() {
+    payAmount = String(payFarmer.remaining)
+  }
+  async function pay() {
+    const n = Number(payAmount)
     if (!Number.isFinite(n) || n <= 0) return notifyError('Montant invalide')
-    if (!defaults.coffreAccountId) return notifyError('Aucun coffre par défaut (Configuration)')
+    if (!defaults.coffreAccountId) return notifyError('Aucun coffre principal (Configuration)')
     try {
       await api(`/api/businesses/${$currentBusinessId}/creances/payment`, {
         method: 'POST',
-        body: JSON.stringify({ farmerUserId: payFarmer.id, amount: n, coffreAccountId: defaults.coffreAccountId, reference: payMotif || null }),
+        body: JSON.stringify({ farmerUserId: payFarmer.farmerUserId, amount: n, coffreAccountId: defaults.coffreAccountId, reference: null }),
       })
       notifySuccess('Paiement enregistré')
       payFarmer = null
-      payKey += 2
-      amount = ''
-      payMotif = ''
-      load()
+      refresh()
     } catch (e) {
       fail(e)
     }
   }
+  async function refresh() {
+    const id = $currentBusinessId
+    if (id) farmers = await api(`/api/businesses/${id}/creances`).catch(() => farmers)
+  }
+  const famColor = (i) => i?.familyColor ?? DEFAULT_CAT
+  const fmtDate = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 </script>
 
 {#if !$currentBusinessId}
   <p class="text-sm text-muted-foreground">Sélectionne un business (en haut) pour gérer les créances.</p>
 {:else if $currentBusiness?.type !== 'COMPAGNIE'}
   <p class="text-sm text-muted-foreground">Les créances ne concernent que les business de type <strong>Compagnie</strong>.</p>
-{:else}
-  <div class="flex flex-col gap-6">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight">Créances</h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Total dû aux farmeurs : <strong class="text-foreground">{formatMoney(totalDue)}</strong>
-      </p>
+{:else if view === 'caisse'}
+  <!-- ===== CAISSE DE RACHAT ===== -->
+  <div style="margin:-12px -8px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 14px;border-bottom:{BORDER};">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button onclick={() => (view = 'registre')} style="display:flex;align-items:center;gap:7px;background:transparent;border:none;color:{MUTED};font-size:13px;font-weight:600;cursor:pointer;"><ChevronLeft size={17} />Créances</button>
+        <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);"></div>
+        <div style="color:{TEXT};font-size:18px;font-weight:700;">Nouveau rachat</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;color:{MUTED};font-size:12.5px;"><Info size={14} />Valorisé au coût de la matière</div>
     </div>
 
-    {#if canOperate}
-      <div class="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Déposer (rachat de matières)</CardTitle></CardHeader>
-          <CardContent class="flex flex-col gap-3">
-            {#key depKey}
-              <UserAutocomplete onSelect={(u) => (depFarmer = u)} />
-            {/key}
-            {#each lines as line, i (i)}
-              <div class="flex flex-wrap items-center gap-2">
-                <SelectField value={line.itemId} onChange={(v) => setLineItem(i, v)} options={itemOptions} />
-                <NumberInput value={String(line.quantity)} onchange={(v) => setLineQty(i, v)} min={1} class="w-32" />
-                <Button variant="ghost" size="icon" onclick={() => removeLine(i)}><Trash2 size={16} /></Button>
+    <div style="display:flex;gap:0;align-items:stretch;min-height:560px;">
+      <!-- catalogue -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;padding:18px 22px 4px 0;gap:13px;">
+        <div style="position:relative;">
+          <Search size={16} color={MUTED} style="position:absolute;left:11px;top:50%;transform:translateY(-50%);" />
+          <input bind:value={rQuery} placeholder="Chercher une matière…" style="width:100%;background:{CARD};border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:{TEXT};font-size:13.5px;padding:10px 12px 10px 34px;outline:none;" />
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          {#each [{ id: 'all', nom: 'Toutes' }, ...fams] as c (c.id)}
+            {@const active = rCat === c.id}
+            <button onclick={() => (rCat = c.id)} style="background:{active ? ORANGE : '#1f1d1b'};color:{active ? '#fff' : '#cfc8c2'};border:{active ? `1px solid ${ORANGE}` : '1px solid rgba(255,255,255,0.08)'};border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;">{c.nom}</button>
+          {/each}
+        </div>
+        <div style="flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-content:start;">
+          {#each catalogue as p (p.id)}
+            <button onclick={() => addMat(p.id)} style="text-align:left;background:{CARD};border:{BORDER};border-radius:11px;padding:13px;cursor:pointer;display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:34px;height:34px;border-radius:9px;background:{famColor(p)};display:flex;align-items:center;justify-content:center;color:#16110d;font-weight:800;font-size:14px;flex:none;">{p.name.slice(0, 2).toUpperCase()}</div>
+                <div style="line-height:1.25;min-width:0;">
+                  <div style="color:{TEXT};font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{p.name}</div>
+                  <div style="color:{MUTED};font-size:11.5px;">{p.familyName ?? '—'}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;">
+                <span style="color:#9a938c;font-size:11.5px;">au coût</span>
+                <span style="color:{TEXT};font-weight:700;font-size:14px;">{fmt(costs.get(p.id) ?? 0)} <span style="color:{MUTED};font-size:11px;font-weight:500;">/ u</span></span>
+              </div>
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <!-- lot -->
+      <div style="width:438px;flex:none;display:flex;flex-direction:column;background:{PANEL};border:{BORDER};border-radius:12px;">
+        <div style="padding:18px 20px 12px;">
+          <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:9px;">Farmeur crédité</div>
+          <UserAutocomplete onSelect={(u) => (rFarmer = u)} placeholder="@pseudo ou nom en jeu…" />
+        </div>
+        <div style="flex:1;min-height:0;overflow:auto;padding:4px 20px;">
+          {#if lot.length === 0}
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:200px;color:#6f6862;text-align:center;">
+              <Boxes size={34} stroke-width={1.6} />
+              <div style="font-size:13.5px;">Clique une matière pour l'ajouter au lot</div>
+            </div>
+          {:else}
+            {#each lot as l (l.id)}
+              <div style="display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div style="width:32px;height:32px;border-radius:8px;background:{famColor(l.item)};display:flex;align-items:center;justify-content:center;color:#16110d;font-weight:800;font-size:13px;flex:none;">{(l.item?.name ?? '?').slice(0, 2).toUpperCase()}</div>
+                <div style="flex:1;min-width:0;line-height:1.3;">
+                  <div style="color:{TEXT};font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{l.item?.name}</div>
+                  <div style="color:{MUTED};font-size:12px;">{fmt(l.cost)} / u au coût</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:5px;flex:none;">
+                  <button onclick={() => incMat(l.id, -1)} style="width:28px;height:28px;background:#232120;border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:#cfc8c2;font-size:16px;cursor:pointer;">−</button>
+                  <span style="min-width:34px;text-align:center;color:{TEXT};font-weight:700;font-size:14px;">{l.qty}</span>
+                  <button onclick={() => incMat(l.id, 1)} style="width:28px;height:28px;background:#232120;border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:#cfc8c2;font-size:16px;cursor:pointer;">+</button>
+                </div>
+                <div style="width:78px;text-align:right;color:{TEXT};font-weight:700;font-size:13.5px;flex:none;">{fmt(l.cost * l.qty)}</div>
               </div>
             {/each}
-            <div>
-              <Button variant="outline" size="sm" disabled={items.length === 0} onclick={addLine}>Ajouter une ligne</Button>
-            </div>
-            <Input placeholder="Motif (optionnel)" bind:value={depMotif} />
-            <Button class="self-start" onclick={deposit}>Déposer</Button>
-            <p class="text-xs text-muted-foreground">Valorisé au coût ; marchandise entrée en stock ; crédite le farmeur.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Payer un farmeur</CardTitle></CardHeader>
-          <CardContent class="flex flex-col gap-3">
-            {#key payKey}
-              <UserAutocomplete onSelect={(u) => (payFarmer = u)} />
-            {/key}
-            <NumberInput value={amount} onchange={(v) => (amount = v)} min={0} placeholder="Montant (septims)" class="w-full" />
-            <Input placeholder="Motif (optionnel)" bind:value={payMotif} />
-            <Button class="self-start" onclick={payment}>Payer</Button>
-            <p class="text-xs text-muted-foreground">Septims sortis du coffre par défaut.</p>
-          </CardContent>
-        </Card>
+          {/if}
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding:16px 20px;background:#19110d;border-radius:0 0 12px 12px;">
+          <div style="display:flex;justify-content:space-between;color:#9a938c;font-size:13px;margin-bottom:6px;"><span>{lot.length} matières · {fmt(rUnits)} unités</span><span>au coût</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;"><span style="color:{TEXT};font-size:15px;font-weight:700;">Crédité au farmeur</span><span style="color:{ORANGE};font-size:27px;font-weight:800;">{fmt(rTotal)} <span style="font-size:13px;color:{MUTED};font-weight:500;">septims</span></span></div>
+          <div style="display:flex;align-items:center;gap:10px;background:#15110e;border:1px solid rgba(255,255,255,0.08);border-radius:9px;padding:11px 13px;margin-bottom:14px;color:{MUTED};font-size:12px;">
+            <Info size={15} /> La marchandise entre dans le coffre principal ; le farmeur est crédité du total.
+          </div>
+          <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px;">Motif <span style="text-transform:none;letter-spacing:0;color:#6f6862;">(optionnel)</span></div>
+          <input bind:value={rMotif} placeholder="Ex. récolte de la semaine…" style="width:100%;background:#15110e;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:{TEXT};font-size:13px;padding:10px 12px;outline:none;margin-bottom:13px;" />
+          <button onclick={() => deposit(false)} disabled={!canOperate} style="width:100%;background:{ORANGE};border:none;color:#fff;font-size:15px;font-weight:700;padding:14px;border-radius:11px;cursor:{canOperate ? 'pointer' : 'not-allowed'};opacity:{canOperate ? 1 : 0.5};box-shadow:0 6px 18px rgba(232,89,12,0.32);display:flex;align-items:center;justify-content:center;gap:9px;">
+            <Check size={18} /> Enregistrer le rachat · crédite {fmt(rTotal)}
+          </button>
+          <button onclick={() => deposit(true)} disabled={!canOperate} style="width:100%;margin-top:9px;background:transparent;border:1px solid rgba(255,255,255,0.12);color:#cfc8c2;font-size:13px;font-weight:600;padding:10px;border-radius:9px;cursor:pointer;">Enregistrer &amp; payer immédiatement</button>
+        </div>
       </div>
-    {/if}
+    </div>
+  </div>
+{:else}
+  <!-- ===== REGISTRE ===== -->
+  <div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:15px;">
+      <div>
+        <div style="color:{TEXT};font-size:24px;font-weight:700;letter-spacing:-0.01em;">Créances</div>
+        <div style="color:{MUTED};font-size:13.5px;margin-top:3px;">Rachat de matières aux farmeurs · {crediteurs} farmeur{crediteurs > 1 ? 's' : ''} à payer</div>
+      </div>
+      {#if canOperate}
+        <div style="display:flex;gap:10px;">
+          <button onclick={() => openCaisse(null)} style="display:flex;align-items:center;gap:8px;background:{ORANGE};border:none;color:#fff;font-size:13.5px;font-weight:700;padding:10px 17px;border-radius:9px;cursor:pointer;box-shadow:0 4px 14px rgba(232,89,12,0.32);"><Plus size={17} /> Racheter des matières</button>
+        </div>
+      {/if}
+    </div>
 
-    <Card>
-      <CardHeader><CardTitle>Farmeurs</CardTitle></CardHeader>
-      <CardContent class="flex flex-col gap-2">
-        {#if farmers.length === 0}
-          <p class="text-sm text-muted-foreground">Aucune créance.</p>
-        {/if}
-        {#each farmers as f (f.farmerUserId)}
-          <div class="rounded-md border">
-            <button
-              onclick={() => showEntries(f.farmerUserId)}
-              class="flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/50"
-            >
-              <span class="font-medium">{f.farmerUsername}</span>
-              <span class="flex items-center gap-3 text-sm">
-                <span class="text-muted-foreground">crédité {formatMoney(f.totalCredit)}</span>
-                <span class="text-muted-foreground">payé {formatMoney(f.totalPaid)}</span>
-                <Badge variant={f.remaining > 0 ? 'destructive' : 'secondary'}>reste {formatMoney(f.remaining)}</Badge>
-              </span>
-            </button>
-            {#if openFarmer === f.farmerUserId}
-              <div class="border-t px-3 py-2">
-                {#if entries.length === 0}
-                  <p class="text-xs text-muted-foreground">Aucune entrée.</p>
-                {/if}
-                {#each entries as e, i (i)}
-                  <div class="flex flex-wrap items-center justify-between gap-2 py-1 text-sm">
-                    <span class="flex items-center gap-2">
-                      <Badge variant={e.type === 'CREDIT' ? 'outline' : 'secondary'}>{e.type === 'CREDIT' ? 'Dépôt' : 'Paiement'}</Badge>
-                      <span class="text-muted-foreground">{e.reference ?? '—'}</span>
-                    </span>
-                    <span class="flex items-center gap-3 text-muted-foreground">
-                      <span>{formatMoney(e.amount)}</span>
-                      <span>{e.username}</span>
-                      <span>{formatDateTime(e.createdAt)}</span>
-                    </span>
-                  </div>
-                {/each}
-              </div>
-            {/if}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:15px;">
+      <div style="background:{CARD};border:1px solid rgba(232,89,12,0.32);border-radius:12px;padding:15px 17px;">
+        <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Total dû aux farmeurs</div>
+        <div style="color:{SOFT};font-size:25px;font-weight:700;margin-top:6px;">{fmt(totalDu)} <span style="font-size:13px;color:{MUTED};font-weight:500;">septims</span></div>
+      </div>
+      {#each [{ l: 'Farmeurs créditeurs', v: String(crediteurs) }, { l: 'Total racheté', v: `${fmt(totalRachat)}` }, { l: 'Total payé', v: `${fmt(totalPaye)}` }] as kp (kp.l)}
+        <div style="background:{CARD};border:{BORDER};border-radius:12px;padding:15px 17px;">
+          <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">{kp.l}</div>
+          <div style="color:{TEXT};font-size:25px;font-weight:700;margin-top:6px;">{kp.v}</div>
+        </div>
+      {/each}
+    </div>
+
+    <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:15px;">
+      <div style="position:relative;">
+        <Search size={16} color={MUTED} style="position:absolute;left:11px;top:50%;transform:translateY(-50%);" />
+        <input bind:value={query} placeholder="Rechercher un farmeur…" style="background:{CARD};border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:{TEXT};font-size:13.5px;padding:9px 12px 9px 34px;width:300px;outline:none;" />
+      </div>
+      {#each chips as c (c.id)}
+        {@const active = filter === c.id}
+        <button onclick={() => (filter = c.id)} style="display:flex;align-items:center;gap:7px;background:{active ? ORANGE : '#1f1d1b'};color:{active ? '#fff' : '#cfc8c2'};border:{active ? `1px solid ${ORANGE}` : '1px solid rgba(255,255,255,0.08)'};border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;">
+          {c.l}<span style="font-size:11px;font-weight:700;background:{active ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.06)'};color:{active ? '#fff' : MUTED};padding:2px 6px;border-radius:5px;">{c.c}</span>
+        </button>
+      {/each}
+    </div>
+
+    <div style="overflow:auto;border:{BORDER};border-radius:12px;background:{TABLE_BG};">
+      <table style="width:100%;border-collapse:collapse;font-size:13.5px;">
+        <thead>
+          <tr style="background:{HEAD_BG};">
+            {#each [{ k: 'name', l: 'FARMEUR', a: 'left' }, { k: 'rachat', l: 'RACHATS', a: 'right' }, { k: 'paye', l: 'PAYÉ', a: 'right' }, { k: 'solde', l: 'SOLDE DÛ', a: 'right' }] as h (h.k)}
+              <th onclick={() => toggleSort(h.k)} style="text-align:{h.a};color:{MUTED};font-weight:600;font-size:12px;letter-spacing:.03em;padding:13px 16px;cursor:pointer;border-bottom:{BORDER};white-space:nowrap;">{h.l} <span style="color:{ORANGE};font-size:10px;">{arrow(h.k)}</span></th>
+            {/each}
+            <th style="width:170px;border-bottom:{BORDER};"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each rows as f (f.farmerUserId)}
+            {@const due = f.remaining > 0}
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:11px 16px;">
+                <div style="display:flex;align-items:center;gap:11px;">
+                  <div style="width:32px;height:32px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:12.5px;flex:none;">{initials(f.farmerUsername)}</div>
+                  <div style="color:{TEXT};font-weight:600;">{f.farmerUsername}</div>
+                </div>
+              </td>
+              <td style="padding:11px 16px;text-align:right;color:#9a938c;">{fmt(f.totalCredit)}</td>
+              <td style="padding:11px 16px;text-align:right;color:#9a938c;">{fmt(f.totalPaid)}</td>
+              <td style="padding:11px 16px;text-align:right;"><span style="color:{due ? SOFT : '#6f6862'};font-weight:700;font-size:14.5px;">{due ? fmt(f.remaining) : '— soldé'}</span></td>
+              <td style="padding:11px 16px;">
+                <div style="display:flex;gap:7px;justify-content:flex-end;">
+                  <button onclick={() => due && openPay(f)} disabled={!due || !canOperate} style="background:{due ? 'rgba(232,89,12,0.14)' : 'transparent'};border:{due ? '1px solid rgba(232,89,12,0.4)' : '1px solid rgba(255,255,255,0.1)'};color:{due ? SOFT : '#6f6862'};font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:7px;cursor:{due && canOperate ? 'pointer' : 'default'};">Payer</button>
+                  {#if canOperate}
+                    <button title="Racheter" onclick={() => openCaisse(f)} style="width:32px;height:32px;border-radius:7px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#cfc8c2;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;">+</button>
+                  {/if}
+                </div>
+              </td>
+            </tr>
+          {/each}
+          {#if rows.length === 0}<tr><td colspan="5" style="padding:14px 16px;color:{MUTED};">Aucun farmeur.</td></tr>{/if}
+        </tbody>
+      </table>
+      <div style="padding:11px 16px;color:#6f6862;font-size:12.5px;border-top:1px solid rgba(255,255,255,0.05);">{rows.length} farmeurs</div>
+    </div>
+  </div>
+
+  <!-- ===== PANNEAU PAIEMENT ===== -->
+  {#if payFarmer}
+    <div style="position:fixed;top:0;right:0;bottom:0;width:404px;background:{PANEL};border-left:1px solid rgba(255,255,255,0.1);box-shadow:-26px 0 55px rgba(0,0,0,0.45);display:flex;flex-direction:column;z-index:50;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:{BORDER};">
+        <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;">Payer un farmeur</div>
+        <button onclick={() => (payFarmer = null)} style="background:transparent;border:none;color:{MUTED};cursor:pointer;display:flex;padding:4px;"><X size={18} /></button>
+      </div>
+      <div style="padding:18px;display:flex;gap:13px;align-items:center;">
+        <div style="width:46px;height:46px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:17px;flex:none;">{initials(payFarmer.farmerUsername)}</div>
+        <div style="color:{TEXT};font-size:17px;font-weight:700;">{payFarmer.farmerUsername}</div>
+      </div>
+      <div style="margin:0 18px;background:#15110e;border:1px solid rgba(232,89,12,0.3);border-radius:11px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="color:{MUTED};font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Solde dû</span>
+        <span style="color:{SOFT};font-size:24px;font-weight:800;">{fmt(payFarmer.remaining)} <span style="font-size:12px;color:{MUTED};font-weight:500;">septims</span></span>
+      </div>
+      <div style="padding:18px 18px 0;">
+        <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Montant à payer</div>
+        <div style="display:flex;align-items:center;gap:9px;margin-top:8px;">
+          <input bind:value={payAmount} type="number" placeholder="0" style="flex:1;background:#15110e;border:1px solid rgba(255,255,255,0.12);border-radius:9px;color:{TEXT};font-size:20px;font-weight:700;text-align:right;padding:10px 13px;outline:none;" />
+          <button onclick={solderTout} style="background:rgba(232,89,12,0.14);border:1px solid rgba(232,89,12,0.4);color:{SOFT};font-size:12.5px;font-weight:700;padding:11px 14px;border-radius:9px;cursor:pointer;white-space:nowrap;">Solder tout</button>
+        </div>
+      </div>
+      <div style="padding:16px 18px 14px;">
+        <button onclick={pay} disabled={!canOperate} style="width:100%;background:{ORANGE};border:none;color:#fff;font-size:14px;font-weight:700;padding:13px;border-radius:10px;cursor:{canOperate ? 'pointer' : 'not-allowed'};opacity:{canOperate ? 1 : 0.5};box-shadow:0 5px 16px rgba(232,89,12,0.28);">Payer{payAmount ? ` ${fmt(Number(payAmount) || 0)}` : ''} · sortie coffre principal</button>
+      </div>
+      <div style="padding:14px 18px;border-top:{BORDER};flex:1;min-height:0;overflow:auto;">
+        <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:10px;">Historique</div>
+        {#each payEntries as mv, i (i)}
+          {@const credit = mv.type === 'CREDIT'}
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <span style="font-size:10.5px;font-weight:700;color:{credit ? '#5BBF73' : '#E5604D'};border:1px solid {credit ? '#5BBF73' : '#E5604D'};padding:2px 7px;border-radius:5px;flex:none;">{credit ? 'RACHAT' : 'PAIEMENT'}</span>
+            <div style="flex:1;min-width:0;"><div style="color:#cfc8c2;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{mv.reference ?? '—'}</div><div style="color:#6f6862;font-size:11.5px;">{fmtDate(mv.createdAt)} · {mv.username}</div></div>
+            <span style="color:{credit ? '#5BBF73' : '#E5604D'};font-weight:700;font-size:13.5px;flex:none;">{credit ? '+' : '−'}{fmt(mv.amount)}</span>
           </div>
         {/each}
-      </CardContent>
-    </Card>
-  </div>
+        {#if payEntries.length === 0}<p style="color:{MUTED};font-size:12.5px;">Aucun mouvement.</p>{/if}
+      </div>
+    </div>
+  {/if}
 {/if}
