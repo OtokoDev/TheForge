@@ -1,6 +1,8 @@
 <script>
+  import { ShoppingCart } from '@lucide/svelte'
   import { api, ApiError } from '../../lib/api.js'
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
+  import Fab from '../ui/Fab.svelte'
 
   let { businessId, canOperate, onBack, onEmitted } = $props()
 
@@ -133,7 +135,7 @@
       </div>
     </div>
 
-    <div style="width:400px; flex:1 1 340px; max-width:100%; background:#171513; border:{BORDER}; border-radius:12px; display:flex; flex-direction:column;">
+    <div id="pos-cart" style="width:400px; flex:1 1 340px; max-width:100%; background:#171513; border:{BORDER}; border-radius:12px; display:flex; flex-direction:column;">
       <div style="padding:16px 18px 10px;">
         <div style="color:{MUTED}; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:8px;">Client</div>
         <input bind:value={client} placeholder="Client de passage (optionnel)" style="width:100%; background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:10px 12px; outline:none;" />
@@ -179,4 +181,8 @@
       </div>
     </div>
   </div>
+
+  {#if count > 0}
+    <Fab icon={ShoppingCart} label="Voir le panier" badge={count} onclick={() => document.getElementById('pos-cart')?.scrollIntoView({ behavior: 'smooth' })} />
+  {/if}
 </div>

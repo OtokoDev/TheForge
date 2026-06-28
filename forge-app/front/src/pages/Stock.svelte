@@ -6,6 +6,7 @@
   import { canAdminBusiness, canOperateBusiness } from '../lib/roles.js'
   import { notifyError, notifySuccess } from '../lib/notifications.js'
   import NumberInput from '../components/ui/NumberInput.svelte'
+  import Fab from '../components/ui/Fab.svelte'
 
   const ORANGE = '#E8590C', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', INPUT_BG = '#15110e'
@@ -374,6 +375,10 @@
           {/if}
         </div>
       </div>
+    {/if}
+
+    {#if canOperate && !inventory}
+      <Fab label="Déposer un objet" onclick={openNewDeposit} />
     {/if}
   </div>
 {/if}
