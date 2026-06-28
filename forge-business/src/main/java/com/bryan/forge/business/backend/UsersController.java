@@ -1,6 +1,7 @@
 package com.bryan.forge.business.backend;
 
 import com.bryan.forge.business.backend.dto.SetActiveRequest;
+import com.bryan.forge.business.backend.dto.SetRoleRequest;
 import com.bryan.forge.core.backend.AuditService;
 import com.bryan.forge.core.backend.BannedRegistry;
 import com.bryan.forge.core.backend.UserRevokedEvent;
@@ -72,6 +73,19 @@ public class UsersController {
         if (!req.active()) {
             revoked.publishEvent(new UserRevokedEvent(user.getDiscordId()));
         }
+        return UserAdminDto.from(user);
+    }
+
+    /** Change le rôle global d'un compte (SYSTEM). Pas sur soi-même (évite l'auto-verrouillage). */
+    @Put("/{id}/role")
+    @Secured("ROLE_SYSTEM")
+    public UserAdminDto setRole(UUID id, @Body SetRoleRequest req) {
+        User actor = currentUser.require();
+        if (id.equals(actor.getId())) {
+            throw new IllegalArgumentException("Impossible de modifier son propre rôle");
+        }
+        User user = userService.setGlobalRole(id, req.role());
+        audit.recordSystem(actor.getId(), "ROLE_SET", user.getUsername() + " → " + req.role());
         return UserAdminDto.from(user);
     }
 }

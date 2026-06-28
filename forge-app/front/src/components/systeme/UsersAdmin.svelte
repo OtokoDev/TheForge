@@ -8,6 +8,13 @@
   import Badge from '../ui/Badge.svelte'
   import Button from '../ui/Button.svelte'
   import Input from '../ui/Input.svelte'
+  import SelectField from '../ui/SelectField.svelte'
+
+  const ROLE_OPTIONS = [
+    { value: 'NONE', label: 'Membre' },
+    { value: 'STAFF', label: 'Staff' },
+    { value: 'SYSTEM', label: 'Système' },
+  ]
 
   let users = $state([])
   let query = $state('')
@@ -26,6 +33,16 @@
     const q = query.trim().toLowerCase()
     return users.filter((u) => q === '' || u.username.toLowerCase().includes(q) || (u.inGameName ?? '').toLowerCase().includes(q))
   })
+
+  async function changeRole(u, role) {
+    try {
+      await api(`/api/users/${u.id}/role`, { method: 'PUT', body: JSON.stringify({ role }) })
+      notifySuccess('Rôle mis à jour')
+      load()
+    } catch (e) {
+      fail(e)
+    }
+  }
 
   async function toggle(u) {
     const active = !u.active
@@ -63,7 +80,13 @@
               <div class="font-medium">{u.inGameName ?? u.username}</div>
               <div class="text-xs text-muted-foreground">@{u.username}</div>
             </td>
-            <td class="px-3 py-2"><Badge variant="outline">{GLOBAL_ROLE_LABELS[u.globalRole]}</Badge></td>
+            <td class="px-3 py-2">
+              {#if u.id === $me.user.id}
+                <Badge variant="outline">{GLOBAL_ROLE_LABELS[u.globalRole]}</Badge>
+              {:else}
+                <SelectField value={u.globalRole} onChange={(v) => changeRole(u, v)} options={ROLE_OPTIONS} />
+              {/if}
+            </td>
             <td class="px-3 py-2">
               {#if u.active}<Badge variant="secondary">actif</Badge>{:else}<Badge variant="destructive">banni</Badge>{/if}
             </td>
