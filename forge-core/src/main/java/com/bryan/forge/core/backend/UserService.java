@@ -1,5 +1,6 @@
 package com.bryan.forge.core.backend;
 
+import com.bryan.forge.core.backend.dto.UserAdminDto;
 import com.bryan.forge.core.backend.dto.UserSummaryDto;
 import com.bryan.forge.core.datamodel.GlobalRole;
 import com.bryan.forge.core.datamodel.User;
@@ -57,6 +58,24 @@ public class UserService {
                 .orElseThrow(() -> new NoSuchElementException("Utilisateur introuvable : " + userId));
         user.setGlobalRole(role);
         return repo.update(user);
+    }
+
+    /** Active / désactive (bannit) un compte. Le ban est rendu effectif par BannedRegistry. */
+    @Transactional
+    public User setActive(UUID userId, boolean active) {
+        User user = repo.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("Utilisateur introuvable : " + userId));
+        user.setActive(active);
+        return repo.update(user);
+    }
+
+    /** Liste complète (admin SYSTEM : rôles, bannissement). */
+    @Transactional
+    public List<UserAdminDto> listAll() {
+        return repo.findAll().stream()
+                .sorted(Comparator.comparing(User::getUsername, String.CASE_INSENSITIVE_ORDER))
+                .map(UserAdminDto::from)
+                .toList();
     }
 
     /** Recherche par pseudo Discord ou nom en jeu (autocomplétion, max 25). */

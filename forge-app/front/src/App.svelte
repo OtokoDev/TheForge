@@ -3,7 +3,7 @@
   import Router from 'svelte-spa-router'
   import { api, ApiError, setUnauthorizedHandler } from './lib/api.js'
   import { me, initBusiness } from './lib/session.js'
-  import { startRealtime } from './lib/realtime.js'
+  import { startRealtime, onRealtime } from './lib/realtime.js'
   import { routes } from './lib/routes.js'
   import Sidebar from './components/Sidebar.svelte'
   import Navbar from './components/Navbar.svelte'
@@ -22,6 +22,8 @@
       me.set(profile)
       await initBusiness()
       startRealtime()
+      // Bannissement poussé par le serveur (WS) → déconnexion immédiate de la session.
+      onRealtime('REVOKED', () => me.set(null))
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 401)) errored = true
       // 401 → me reste null → Login

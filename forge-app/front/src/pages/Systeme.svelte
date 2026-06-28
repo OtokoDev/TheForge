@@ -7,6 +7,7 @@
   import TaxonBoard from '../components/systeme/TaxonBoard.svelte'
   import BaseItemsBoard from '../components/systeme/BaseItemsBoard.svelte'
   import BusinessAdmin from '../components/systeme/BusinessAdmin.svelte'
+  import UsersAdmin from '../components/systeme/UsersAdmin.svelte'
   import JournalTimeline from '../components/JournalTimeline.svelte'
   import Button from '../components/ui/Button.svelte'
 
@@ -19,6 +20,7 @@
     { key: 'import', label: 'Import Skyrim' },
     { separator: 'Organisation' },
     { key: 'business', label: 'Business' },
+    { key: 'users', label: 'Utilisateurs' },
     { separator: 'Activité' },
     { key: 'audit', label: 'Audit' },
   ]
@@ -85,6 +87,8 @@
       </div>
     {:else if tab === 'business'}
       <BusinessAdmin />
+    {:else if tab === 'users'}
+      <UsersAdmin />
     {:else if tab === 'audit'}
       <JournalTimeline path="/api/system/activity" title="Audit système" subtitle="Connexions, comptes, rôles et événements système (non fonctionnels)." />
     {/if}
