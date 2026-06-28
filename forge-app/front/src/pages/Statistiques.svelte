@@ -1,5 +1,5 @@
 <script>
-  import { currentBusinessId } from '../lib/session.js'
+  import { currentBusinessId, currentBusiness } from '../lib/session.js'
   import { api, ApiError } from '../lib/api.js'
   import { exportCsv } from '../lib/csv.js'
   import { notifyError } from '../lib/notifications.js'
@@ -14,15 +14,17 @@
   const fmt = (n) => Number(n ?? 0).toLocaleString('fr-FR')
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
 
-  const TABS = [
+  // Créances : seulement pour les Compagnies (comme la page Rachat).
+  let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
+  let TABS = $derived([
     { key: 'overview', label: "Vue d'ensemble" },
     { key: 'products', label: 'Produits' },
     { key: 'forgerons', label: 'Forgerons' },
     { key: 'stock', label: 'Stock' },
     { key: 'activity', label: 'Activité' },
-    { key: 'creances', label: 'Créances' },
+    ...(isCompagnie ? [{ key: 'creances', label: 'Créances' }] : []),
     { key: 'clients', label: 'Clients' },
-  ]
+  ])
   const PERIODS = [{ d: 7, l: '7 j' }, { d: 30, l: '30 j' }, { d: 90, l: '90 j' }]
   const DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
   const iso = (d) => d.toISOString().slice(0, 10)
@@ -31,8 +33,14 @@
   let from = $state(new Date(Date.now() - 30 * 86400000))
   let to = $state(new Date())
   let data = $state(null)
+  let dataTab = $state(null) // onglet auquel `data` correspond (évite de rendre avec des données d'un autre onglet)
   let loading = $state(false)
   let metric = $state('ca')
+
+  // Si on quitte une Compagnie alors que l'onglet Créances est ouvert → revenir à la vue d'ensemble.
+  $effect(() => {
+    if (tab === 'creances' && !isCompagnie) tab = 'overview'
+  })
 
   function preset(d) {
     from = new Date(Date.now() - d * 86400000)
@@ -54,7 +62,12 @@
     data = null
     let active = true
     api(`/api/businesses/${id}/stats/${t}?from=${f}&to=${tt}`)
-      .then((v) => active && (data = v))
+      .then((v) => {
+        if (active) {
+          data = v
+          dataTab = t
+        }
+      })
       .catch(fail)
       .finally(() => active && (loading = false))
     return () => { active = false }
@@ -111,7 +124,7 @@
       {/each}
     </div>
 
-    {#if loading}
+    {#if loading || dataTab !== tab}
       <p class="text-sm text-muted-foreground">Chargement…</p>
     {:else if data}
       {#if tab === 'overview'}
