@@ -41,6 +41,11 @@
 <Card>
   <CardHeader><CardTitle>Taxe</CardTitle></CardHeader>
   <CardContent class="flex flex-col gap-3">
+    <p class="text-sm text-muted-foreground">
+      Prélevée sur le <strong class="text-foreground">bénéfice</strong> (CA − coût des matières), pas sur le chiffre d'affaires.
+      À chaque vente, ce taux revient à l'entreprise ; le reste du bénéfice est gardé par le forgeron.
+      Ex. : <strong class="text-foreground">10 %</strong> → l'entreprise garde 10 % du bénéfice, le joueur 90 %.
+    </p>
     <p class="text-sm">Taux courant : <strong>{current ? `${(current.rate * 100).toFixed(2)} %` : '…'}</strong></p>
     <div class="flex flex-wrap items-center gap-2">
       <NumberInput value={pct} onchange={(v) => (pct = v)} min={0} max={100} placeholder="%" class="w-40" />
