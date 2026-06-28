@@ -79,7 +79,7 @@
     </div>
 
     <!-- KPIs -->
-    <div style="display:grid; grid-template-columns:repeat({isCompagnie ? 4 : 3},1fr); gap:12px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px;">
       {#snippet kpi(label, value, accent)}
         <div style="background:{CARD}; border:1px solid {accent ? 'rgba(232,89,12,0.32)' : 'rgba(255,255,255,0.07)'}; border-radius:12px; padding:14px 16px;">
           <div style="color:{MUTED}; font-size:11px; text-transform:uppercase; letter-spacing:.05em; font-weight:600;">{label}</div>
@@ -95,7 +95,7 @@
     <!-- actions rapides -->
     <div>
       <div style="color:{MUTED}; font-size:11px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:8px;">Actions rapides</div>
-      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;">
         {#each actions as a (a.href)}
           {@const Icon = a.icon}
           <a href={a.href} style="display:flex; flex-direction:column; gap:8px; text-decoration:none; background:{a.primary ? ORANGE : CARD}; border:{a.primary ? 'none' : BORDER}; border-radius:11px; padding:14px; color:{a.primary ? '#fff' : '#cfc8c2'};">
@@ -110,7 +110,7 @@
   {/if}
 
   <!-- deux colonnes -->
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px;">
     <div style="background:{CARD}; border:{BORDER}; border-radius:12px; padding:14px;">
       <div style="font-weight:600; color:{TEXT}; margin-bottom:11px;">Mes business</div>
       {#if $me.memberships.length === 0}
