@@ -24,7 +24,7 @@
   function onInput() {
     if (picked) return
     clearTimeout(timer)
-    const term = q.trim()
+    const term = q.trim().replace(/^@/, '') // l'arrobase distingue la saisie pseudo, pas envoyée au back
     if (term.length < 1) {
       results = []
       open = false

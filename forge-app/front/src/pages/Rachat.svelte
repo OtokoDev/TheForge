@@ -1,11 +1,12 @@
 <script>
   import { Trash2 } from '@lucide/svelte'
-  import { me, currentBusinessId } from '../lib/session.js'
+  import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { api, ApiError } from '../lib/api.js'
   import { formatMoney, formatDateTime } from '../lib/format.js'
   import { canOperateBusiness } from '../lib/roles.js'
   import { notifySuccess, notifyError } from '../lib/notifications.js'
   import UserAutocomplete from '../components/admin/UserAutocomplete.svelte'
+  import NumberInput from '../components/ui/NumberInput.svelte'
   import Card from '../components/ui/Card.svelte'
   import CardHeader from '../components/ui/CardHeader.svelte'
   import CardTitle from '../components/ui/CardTitle.svelte'
@@ -115,6 +116,8 @@
 
 {#if !$currentBusinessId}
   <p class="text-sm text-muted-foreground">Sélectionne un business (en haut) pour gérer les créances.</p>
+{:else if $currentBusiness?.type !== 'COMPAGNIE'}
+  <p class="text-sm text-muted-foreground">Les créances ne concernent que les business de type <strong>Compagnie</strong>.</p>
 {:else}
   <div class="flex flex-col gap-6">
     <div>
@@ -135,13 +138,7 @@
             {#each lines as line, i (i)}
               <div class="flex flex-wrap items-center gap-2">
                 <SelectField value={line.itemId} onChange={(v) => setLineItem(i, v)} options={itemOptions} />
-                <input
-                  type="number"
-                  min="1"
-                  class="h-8 w-24 rounded-lg border border-input bg-input/30 px-2.5 text-sm outline-none"
-                  value={line.quantity}
-                  oninput={(e) => setLineQty(i, e.currentTarget.value)}
-                />
+                <NumberInput value={String(line.quantity)} onchange={(v) => setLineQty(i, v)} min={1} class="w-32" />
                 <Button variant="ghost" size="icon" onclick={() => removeLine(i)}><Trash2 size={16} /></Button>
               </div>
             {/each}
@@ -160,7 +157,7 @@
             {#key payKey}
               <UserAutocomplete onSelect={(u) => (payFarmer = u)} />
             {/key}
-            <Input type="number" placeholder="Montant (septims)" bind:value={amount} />
+            <NumberInput value={amount} onchange={(v) => (amount = v)} min={0} placeholder="Montant (septims)" class="w-full" />
             <Input placeholder="Motif (optionnel)" bind:value={payMotif} />
             <Button class="self-start" onclick={payment}>Payer</Button>
             <p class="text-xs text-muted-foreground">Septims sortis du coffre par défaut.</p>

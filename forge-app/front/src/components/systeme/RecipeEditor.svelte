@@ -4,6 +4,7 @@
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
   import Button from '../ui/Button.svelte'
   import SelectField from '../ui/SelectField.svelte'
+  import NumberInput from '../ui/NumberInput.svelte'
 
   let { output, items } = $props()
 
@@ -51,13 +52,7 @@
     {#each lines as line, index (index)}
       <div class="flex flex-wrap items-center gap-2">
         <SelectField value={line.componentItemId} onChange={(v) => setItem(index, v)} options={candidates.map((c) => ({ value: c.id, label: c.name }))} />
-        <input
-          type="number"
-          min="1"
-          class="h-8 w-20 rounded-lg border border-input bg-input/30 px-2.5 text-sm outline-none"
-          value={line.quantity}
-          oninput={(e) => setQty(index, e.currentTarget.value)}
-        />
+        <NumberInput value={String(line.quantity)} onchange={(v) => setQty(index, v)} min={1} class="w-28" />
         <Button variant="ghost" size="icon" onclick={() => removeLine(index)}><Trash2 size={16} /></Button>
       </div>
     {/each}

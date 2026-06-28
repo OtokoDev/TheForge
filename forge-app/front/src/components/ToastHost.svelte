@@ -10,7 +10,7 @@
 
 <div class="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col gap-2">
   {#each $toasts as t (t.id)}
-    <div class="pointer-events-auto rounded-md border px-4 py-2 text-sm shadow-lg {styles[t.type] ?? styles.info}">
+    <div class="pointer-events-auto rounded-lg border px-5 py-3 text-base font-medium shadow-xl {styles[t.type] ?? styles.info}">
       {t.message}
     </div>
   {/each}

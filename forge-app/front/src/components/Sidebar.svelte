@@ -4,7 +4,7 @@
     Gauge, FileText, ClipboardList, Hammer, Coins, ScrollText, ChartLine,
     Package, Settings, Globe, Boxes, Shield, User,
   } from '@lucide/svelte'
-  import { me, currentBusinessId } from '../lib/session.js'
+  import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { canAdminBusiness, canStaffView } from '../lib/roles.js'
 
   const primaryBase = [
@@ -21,8 +21,10 @@
   let isSystem = $derived($me.user.globalRole === 'SYSTEM')
   let canConfig = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
 
+  // Créances réservées aux Compagnies (les forges n'ont pas de farmeurs à rembourser).
+  let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
   let primary = $derived([
-    ...primaryBase,
+    ...primaryBase.filter((it) => it.href !== '/rachat' || isCompagnie),
     ...(canConfig ? [{ href: '/configuration', label: 'Configuration', icon: Settings }] : []),
   ])
   let secondary = $derived([

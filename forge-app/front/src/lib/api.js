@@ -10,6 +10,12 @@ export class ApiError extends Error {
   }
 }
 
+// Handler global appelé sur tout 401 (token expiré) → App repasse en écran de login.
+let onUnauthorized = null
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn
+}
+
 /** Appel JSON authentifié (cookie JWT via credentials: "include"). */
 export async function api(path, init) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -22,6 +28,7 @@ export async function api(path, init) {
 
   const body = await res.json().catch(() => null)
   if (!res.ok) {
+    if (res.status === 401 && onUnauthorized) onUnauthorized()
     throw new ApiError(res.status, (body && body.message) || res.statusText)
   }
   return body

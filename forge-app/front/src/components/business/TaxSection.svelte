@@ -6,7 +6,7 @@
   import CardHeader from '../ui/CardHeader.svelte'
   import CardTitle from '../ui/CardTitle.svelte'
   import CardContent from '../ui/CardContent.svelte'
-  import Input from '../ui/Input.svelte'
+  import NumberInput from '../ui/NumberInput.svelte'
   import Button from '../ui/Button.svelte'
 
   let { businessId } = $props()
@@ -43,7 +43,7 @@
   <CardContent class="flex flex-col gap-3">
     <p class="text-sm">Taux courant : <strong>{current ? `${(current.rate * 100).toFixed(2)} %` : '…'}</strong></p>
     <div class="flex flex-wrap items-center gap-2">
-      <Input type="number" class="w-28" placeholder="% prélevé" bind:value={pct} />
+      <NumberInput value={pct} onchange={(v) => (pct = v)} min={0} max={100} placeholder="%" class="w-40" />
       <span class="text-sm text-muted-foreground">%</span>
       <Button onclick={save}>Définir</Button>
     </div>

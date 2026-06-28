@@ -12,6 +12,7 @@
   import Input from '../components/ui/Input.svelte'
   import Button from '../components/ui/Button.svelte'
   import Badge from '../components/ui/Badge.svelte'
+  import Checkbox from '../components/ui/Checkbox.svelte'
 
   const u = $me.user
   let inGameName = $state(u.inGameName ?? '')
@@ -23,11 +24,13 @@
     notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
   }
 
-  async function toggleWebhooks(next) {
-    webhooks = next
+  // webhooks déjà basculé par bind:checked ; on persiste + maj le store me (UI globale à jour).
+  async function persistWebhooks() {
+    const next = webhooks
     try {
       await api('/api/me/webhooks', { method: 'PUT', body: JSON.stringify({ enabled: next }) })
       notifySuccess('Préférence enregistrée')
+      me.update((m) => ({ ...m, user: { ...m.user, webhooksEnabled: next } }))
     } catch (e) {
       webhooks = !next
       fail(e)
@@ -40,6 +43,8 @@
       await api('/api/me/in-game-name', { method: 'PUT', body: JSON.stringify({ inGameName }) })
       notifySuccess('Pseudo mis à jour')
       savedName = inGameName
+      // Met à jour le store partagé → navbar/sidebar/dashboard reflètent le nouveau pseudo direct.
+      me.update((m) => ({ ...m, user: { ...m.user, inGameName } }))
     } catch (e) {
       fail(e)
     } finally {
@@ -68,15 +73,7 @@
 <Card>
   <CardHeader><CardTitle>Notifications</CardTitle></CardHeader>
   <CardContent>
-    <label class="flex items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        class="size-4 accent-primary"
-        checked={webhooks}
-        onchange={(e) => toggleWebhooks(e.currentTarget.checked)}
-      />
-      Recevoir mes webhooks Discord (prise/fin de service, factures)
-    </label>
+    <Checkbox bind:checked={webhooks} onchange={persistWebhooks} label="Recevoir mes webhooks Discord (prise/fin de service, factures)" />
   </CardContent>
 </Card>
 

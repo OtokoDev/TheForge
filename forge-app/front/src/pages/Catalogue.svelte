@@ -4,6 +4,7 @@
   import { canAdminBusiness } from '../lib/roles.js'
   import { notifyError } from '../lib/notifications.js'
   import CatalogueRow from '../components/catalogue/CatalogueRow.svelte'
+  import Checkbox from '../components/ui/Checkbox.svelte'
 
   const ORANGE = '#E8590C'
   const TEXT = '#F4F1EE'
@@ -92,9 +93,7 @@
           placeholder="Rechercher un produit…"
           style="background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:9px 12px; width:240px; outline:none;"
         />
-        <label style="display:flex; align-items:center; gap:6px; color:{MUTED}; font-size:13px;">
-          <input type="checkbox" bind:checked={onlySellable} /> Vendables uniquement
-        </label>
+        <Checkbox bind:checked={onlySellable} label="Vendables uniquement" />
       </div>
       {@render filterRow('Famille', fam, (v) => (fam = v), fams)}
       {@render filterRow('Matériau', mat, (v) => (mat = v), mats)}
