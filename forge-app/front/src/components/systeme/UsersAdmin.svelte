@@ -61,7 +61,7 @@
   <p class="text-sm text-muted-foreground">
     Bannir désactive le compte : effet immédiat (session fermée + API bloquée), le token n'est plus accepté.
   </p>
-  <Input class="max-w-xs" placeholder="Rechercher un utilisateur…" bind:value={query} />
+  <Input class="max-w-xs" ariaLabel="Rechercher un utilisateur" placeholder="Rechercher un utilisateur…" bind:value={query} />
 
   <div class="overflow-auto rounded-md border">
     <table class="w-full text-sm">

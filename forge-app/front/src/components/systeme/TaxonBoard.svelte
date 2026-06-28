@@ -95,7 +95,7 @@
           onblur={(e) => e.currentTarget.value.trim() && e.currentTarget.value !== t.nom && save(t, { nom: e.currentTarget.value.trim() })}
         />
         <div class="flex-1"></div>
-        <Button variant="ghost" size="icon" onclick={() => remove(t)}><Trash2 size={16} /></Button>
+        <Button variant="ghost" size="icon" ariaLabel="Supprimer" onclick={() => remove(t)}><Trash2 size={16} /></Button>
       </div>
     {/each}
     {#if rows.length === 0}<p class="text-sm text-muted-foreground">Aucune entrée.</p>{/if}

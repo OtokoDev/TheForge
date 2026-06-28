@@ -53,7 +53,7 @@
       <div class="flex flex-wrap items-center gap-2">
         <SelectField value={line.componentItemId} onChange={(v) => setItem(index, v)} options={candidates.map((c) => ({ value: c.id, label: c.name }))} />
         <NumberInput value={String(line.quantity)} onchange={(v) => setQty(index, v)} min={1} class="w-28" />
-        <Button variant="ghost" size="icon" onclick={() => removeLine(index)}><Trash2 size={16} /></Button>
+        <Button variant="ghost" size="icon" ariaLabel="Retirer l'ingrédient" onclick={() => removeLine(index)}><Trash2 size={16} /></Button>
       </div>
     {/each}
     <div class="flex gap-2">

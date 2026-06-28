@@ -69,7 +69,7 @@
   </Modal>
 
   <div class="flex flex-wrap items-center gap-2">
-    <Input class="max-w-xs" placeholder="Rechercher…" bind:value={query} />
+    <Input class="max-w-xs" ariaLabel="Rechercher un objet de base" placeholder="Rechercher…" bind:value={query} />
     <SelectField value={famFilter} onChange={(v) => (famFilter = v)} options={opts(families, 'Toutes familles')} />
     <SelectField value={matFilter} onChange={(v) => (matFilter = v)} options={opts(materials, 'Tous matériaux')} />
     <span class="text-sm text-muted-foreground">{filtered.length} objet(s)</span>

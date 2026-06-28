@@ -197,7 +197,7 @@
       <div style="flex:1 1 320px;min-width:0;display:flex;flex-direction:column;padding:18px 0 4px;gap:13px;">
         <div style="position:relative;">
           <Search size={16} color={MUTED} style="position:absolute;left:11px;top:50%;transform:translateY(-50%);" />
-          <input bind:value={rQuery} placeholder="Chercher une matière…" style="width:100%;background:{CARD};border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:{TEXT};font-size:13.5px;padding:10px 12px 10px 34px;outline:none;" />
+          <input bind:value={rQuery} placeholder="Chercher une matière…" aria-label="Chercher une matière" style="width:100%;background:{CARD};border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:{TEXT};font-size:13.5px;padding:10px 12px 10px 34px;outline:none;" />
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           {#each [{ id: 'all', nom: 'Toutes' }, ...fams] as c (c.id)}
@@ -302,7 +302,7 @@
     <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:15px;">
       <div style="position:relative;">
         <Search size={16} color={MUTED} style="position:absolute;left:11px;top:50%;transform:translateY(-50%);" />
-        <input bind:value={query} placeholder="Rechercher un farmeur…" style="background:{CARD};border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:{TEXT};font-size:13.5px;padding:9px 12px 9px 34px;width:300px;outline:none;" />
+        <input bind:value={query} placeholder="Rechercher un farmeur…" aria-label="Rechercher un farmeur" style="background:{CARD};border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:{TEXT};font-size:13.5px;padding:9px 12px 9px 34px;width:300px;outline:none;" />
       </div>
       {#each chips as c (c.id)}
         {@const active = filter === c.id}
@@ -360,7 +360,7 @@
     <div style="position:fixed;top:0;right:0;bottom:0;width:min(404px,100vw);background:{PANEL};border-left:1px solid rgba(255,255,255,0.1);box-shadow:-26px 0 55px rgba(0,0,0,0.45);display:flex;flex-direction:column;z-index:50;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:{BORDER};">
         <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;">Payer un farmeur</div>
-        <button onclick={() => (payFarmer = null)} style="background:transparent;border:none;color:{MUTED};cursor:pointer;display:flex;padding:4px;"><X size={18} /></button>
+        <button onclick={() => (payFarmer = null)} aria-label="Fermer" style="background:transparent;border:none;color:{MUTED};cursor:pointer;display:flex;padding:4px;"><X size={18} /></button>
       </div>
       <div style="padding:18px;display:flex;gap:13px;align-items:center;">
         <div style="width:46px;height:46px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:17px;flex:none;">{initials(payFarmer.farmerInGameName ?? payFarmer.farmerUsername)}</div>

@@ -104,7 +104,7 @@
     <button onclick={load} class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted">Actualiser</button>
   </div>
 
-  <input type="search" placeholder="Rechercher (détail, auteur)…" bind:value={search} class="w-full rounded-lg border border-input bg-input/30 px-3 py-2 text-sm outline-none focus-visible:border-ring" />
+  <input type="search" aria-label="Rechercher dans le journal" placeholder="Rechercher (détail, auteur)…" bind:value={search} class="w-full rounded-lg border border-input bg-input/30 px-3 py-2 text-sm outline-none focus-visible:border-ring" />
 
   <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
     <div class="flex flex-1 flex-wrap items-center gap-1.5">

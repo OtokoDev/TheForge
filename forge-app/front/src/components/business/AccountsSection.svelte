@@ -104,7 +104,7 @@
           <div class="flex items-center gap-2">
             <Badge variant="outline">{KIND_LABEL[a.kind] ?? a.kind}</Badge>
             {#if a.id !== defaultId}
-              <button onclick={() => remove(a)} title="Supprimer (si vide)" class="text-muted-foreground transition hover:text-destructive"><Trash2 size={15} /></button>
+              <button onclick={() => remove(a)} aria-label="Supprimer le coffre" title="Supprimer (si vide)" class="text-muted-foreground transition hover:text-destructive"><Trash2 size={15} /></button>
             {/if}
           </div>
         </div>

@@ -76,7 +76,7 @@
     {#if !item.system}
       <Button variant="ghost" size="sm" onclick={() => (editing = !editing)}>{editing ? 'Annuler' : 'Éditer'}</Button>
       <Button variant="ghost" size="sm" onclick={toggleActive}>{item.active ? 'Désactiver' : 'Activer'}</Button>
-      <Button variant="ghost" size="icon" onclick={remove}><Trash2 size={16} /></Button>
+      <Button variant="ghost" size="icon" ariaLabel="Supprimer l'objet" onclick={remove}><Trash2 size={16} /></Button>
     {/if}
   </div>
 

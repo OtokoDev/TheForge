@@ -91,6 +91,7 @@
         <input
           bind:value={query}
           placeholder="Rechercher un produit…"
+          aria-label="Rechercher un produit"
           style="background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:9px 12px; width:240px; outline:none;"
         />
         <Checkbox bind:checked={onlySellable} label="Vendables uniquement" />

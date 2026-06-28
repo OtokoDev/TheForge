@@ -5,6 +5,7 @@
     type = 'text',
     disabled = false,
     class: cls = '',
+    ariaLabel = undefined,
     oninput,
     onkeydown,
   } = $props()
@@ -13,6 +14,7 @@
 <input
   {type}
   {placeholder}
+  aria-label={ariaLabel}
   {disabled}
   {oninput}
   {onkeydown}

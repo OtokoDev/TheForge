@@ -1,5 +1,5 @@
 <script>
-  let { variant = 'default', size = 'default', onclick, disabled = false, type = 'button', class: cls = '', children } = $props()
+  let { variant = 'default', size = 'default', onclick, disabled = false, type = 'button', class: cls = '', ariaLabel = undefined, children } = $props()
   const variants = {
     default: 'bg-primary text-primary-foreground hover:bg-primary/90',
     outline: 'border bg-transparent hover:bg-accent hover:text-accent-foreground',
@@ -13,6 +13,7 @@
   {type}
   {disabled}
   {onclick}
+  aria-label={ariaLabel}
   class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50 {variants[variant] ?? variants.default} {sizes[size] ?? sizes.default} {cls}"
 >
   {@render children?.()}

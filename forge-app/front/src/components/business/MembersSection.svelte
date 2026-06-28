@@ -90,7 +90,7 @@
           </span>
           <div class="flex items-center gap-2">
             <SelectField value={m.role} onChange={(v) => changeRole(m.userId, v, m.version)} options={ROLE_OPTS} />
-            <Button variant="ghost" size="icon" onclick={() => remove(m.userId)}><Trash2 size={16} /></Button>
+            <Button variant="ghost" size="icon" ariaLabel="Retirer le membre" onclick={() => remove(m.userId)}><Trash2 size={16} /></Button>
           </div>
         </div>
       {/each}

@@ -243,7 +243,7 @@
     {/if}
 
     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:15px;">
-      <input bind:value={query} placeholder="Rechercher un objet…" style="background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:9px 12px; width:240px; outline:none;" />
+      <input bind:value={query} placeholder="Rechercher un objet…" aria-label="Rechercher un objet" style="background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:9px 12px; width:240px; outline:none;" />
       {@render filterRow('Famille', fam, (v) => (fam = v), famOpts)}
       {@render filterRow('Matériau', mat, (v) => (mat = v), matOpts)}
     </div>
@@ -302,7 +302,7 @@
       <div style="position:fixed; top:0; right:0; bottom:0; width:min(386px,100vw); background:#1a1613; border-left:1px solid rgba(255,255,255,0.1); box-shadow:-26px 0 55px rgba(0,0,0,0.42); display:flex; flex-direction:column; z-index:50;">
         <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:{BORDER};">
           <div style="color:{MUTED}; font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Mouvement de stock</div>
-          <button onclick={() => (sel = null)} style="background:transparent; border:none; color:{MUTED}; cursor:pointer; font-size:18px;">✕</button>
+          <button onclick={() => (sel = null)} aria-label="Fermer" style="background:transparent; border:none; color:{MUTED}; cursor:pointer; font-size:18px;">✕</button>
         </div>
 
         <div style="padding:18px; display:flex; flex-direction:column; gap:14px; overflow:auto;">

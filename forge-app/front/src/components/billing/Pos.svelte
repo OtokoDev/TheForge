@@ -108,7 +108,7 @@
 
   <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
     <div style="flex:1 1 340px; min-width:0;">
-      <input bind:value={query} placeholder="Chercher un article du catalogue…" style="width:100%; background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:10px 12px; outline:none; margin-bottom:12px;" />
+      <input bind:value={query} placeholder="Chercher un article du catalogue…" aria-label="Chercher un article" style="width:100%; background:{CARD}; border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:10px 12px; outline:none; margin-bottom:12px;" />
       {@render filterRow('Famille', fam, (v) => (fam = v), fams)}
       {@render filterRow('Matériau', mat, (v) => (mat = v), mats)}
       <div style="height:6px;"></div>
