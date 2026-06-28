@@ -286,7 +286,7 @@
       {/if}
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:15px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:15px;">
       <div style="background:{CARD};border:1px solid rgba(232,89,12,0.32);border-radius:12px;padding:15px 17px;">
         <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Total dû aux farmeurs</div>
         <div style="color:{SOFT};font-size:25px;font-weight:700;margin-top:6px;">{fmt(totalDu)} <span style="font-size:13px;color:{MUTED};font-weight:500;">septims</span></div>

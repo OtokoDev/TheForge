@@ -92,7 +92,7 @@
     </div>
   </div>
 
-  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:15px;">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:15px;">
     {@render kpi("Encaissé aujourd'hui", `${fmt(kpis.caJour)} septims`)}
     {@render kpi('Factures émises (jour)', fmt(kpis.emisJour))}
     {@render kpi('Non payé (à crédit)', fmt(kpis.nonPaye), `· ${kpis.nonPayeCount} fact.`, RED)}
