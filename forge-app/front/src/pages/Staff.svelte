@@ -9,7 +9,7 @@
 
   const ORANGE = '#E8590C'
   const GREEN = '#5fa890'
-  const fmt = (n) => Number(n ?? 0).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   const PERIODS = [{ w: 4, l: '4 sem.' }, { w: 12, l: '12 sem.' }, { w: 26, l: '26 sem.' }]
 
   const allowed = canStaffView($me)

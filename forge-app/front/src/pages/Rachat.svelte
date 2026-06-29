@@ -9,7 +9,7 @@
   const ORANGE = '#E8590C', SOFT = '#f5a06a', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', PANEL = '#1a1613'
   const INPUT_BG = '#15110e', BORDER = '1px solid rgba(255,255,255,0.07)', DEFAULT_CAT = '#7d90a6'
-  const fmt = (n) => Number(n ?? 0).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
   const initials = (n) => {
     const w = (n ?? '?').trim().split(/[ \-_@]/).filter(Boolean)

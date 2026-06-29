@@ -11,7 +11,7 @@
   const ORANGE = '#E8590C', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', INPUT_BG = '#15110e'
   const BORDER = '1px solid rgba(255,255,255,0.07)', DEFAULT_CAT = '#7d90a6'
-  const fmt = (n) => Number(n).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   const initials = (n) => n.slice(0, 2).toUpperCase()
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
   const thStyle = `color:${MUTED}; font-weight:600; font-size:12px; letter-spacing:.03em; padding:13px 16px; cursor:pointer; border-bottom:${BORDER}; white-space:nowrap;`

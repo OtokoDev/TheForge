@@ -59,6 +59,8 @@ public class User {
     public String getDiscordId()   { return discordId; }
     public String getUsername()    { return username; }
     public String getInGameName()  { return inGameName; }
+    /** Nom affiché (webhooks Discord, RP) : pseudo in-game si défini, sinon le tag Discord. */
+    public String getDisplayName() { return inGameName != null && !inGameName.isBlank() ? inGameName : username; }
     public String getAvatar()      { return avatar; }
     public GlobalRole getGlobalRole() { return globalRole; }
     public boolean isActive()      { return active; }

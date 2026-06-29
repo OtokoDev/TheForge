@@ -6,7 +6,7 @@
 
   const ORANGE = '#E8590C', SOFT = '#f5a06a', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', BORDER = '1px solid rgba(255,255,255,0.07)', GREEN = '#5BBF73'
-  const fmt = (n) => Number(n ?? 0).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
 
   let displayName = $derived($me.user.inGameName ?? $me.user.username)
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')

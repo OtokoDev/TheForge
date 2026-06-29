@@ -6,7 +6,7 @@
   import FactureList from '../components/billing/FactureList.svelte'
   import Pos from '../components/billing/Pos.svelte'
 
-  const fmt = (n) => Number(n).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   let canOperate = $derived($currentBusinessId ? canOperateBusiness($me, $currentBusinessId) : false)
   let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
   let view = $state('list')

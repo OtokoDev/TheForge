@@ -6,7 +6,7 @@
 
   const ORANGE = '#E8590C', GREEN = '#5BBF73', RED = '#ed8472', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', BORDER = '1px solid rgba(255,255,255,0.07)'
-  const fmt = (n) => Number(n).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   const isToday = (iso) => new Date(iso).toDateString() === new Date().toDateString()
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
 
@@ -144,7 +144,7 @@
                 <div style="display:flex; flex-wrap:wrap; gap:18px; align-items:center; justify-content:space-between;">
                   <div style="color:#cfc8c2; font-size:13px;">
                     {f.lines.map((l) => `${l.quantity}× ${l.itemName} (${fmt(l.lineTotal || l.unitPrice * l.quantity)})`).join(' · ')}
-                    {#if f.status === 'VALIDEE'}<span style="color:{MUTED};"> — bénéf. {fmt(f.totalProfit)} · part forge {fmt(f.businessShare)} · part forgeron {fmt(f.workerShare)} septims</span>{/if}
+                    {#if f.status === 'VALIDEE'}<span style="color:{MUTED};"> — bénéf. {fmt(f.totalProfit)} · part forge {fmt(f.businessShare)} · part forgeron {fmt(Math.round(Number(f.totalProfit)) - Math.round(Number(f.businessShare)))} septims</span>{/if}
                   </div>
                   {#if canOperate}
                     <div style="display:flex; gap:8px;" role="presentation" onclick={(e) => e.stopPropagation()}>

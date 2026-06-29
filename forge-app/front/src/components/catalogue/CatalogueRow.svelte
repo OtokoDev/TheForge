@@ -9,7 +9,7 @@
   const MUTED = '#8f8880'
   const BORDER = '1px solid rgba(255,255,255,0.07)'
   const DEFAULT_CAT = '#7d90a6'
-  const fmt = (n) => Number(n).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   const td = `padding:9px 16px; border-bottom:${BORDER}; color:#cfc8c2;`
   const tdR = td + 'text-align:right;'
   const inputStyle =

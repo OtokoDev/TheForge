@@ -302,7 +302,7 @@ public class FactureService {
                     null, coffre, MovementType.SALE, "FACTURE", factureId, ref, actor.getId());
         }
 
-        events.publishEvent(new FactureValidatedEvent(actor.getUsername(), actor.isWebhooksEnabled(),
+        events.publishEvent(new FactureValidatedEvent(actor.getDisplayName(), actor.isWebhooksEnabled(),
                 facture.getNumero(), totalAmount, totalCost, totalProfit, businessShare, workerShare));
 
         return toDto(facture, lines, itemNames());

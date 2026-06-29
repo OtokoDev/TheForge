@@ -55,7 +55,7 @@ public class SessionService {
                 new WorkSession(businessId, actor.getId(), taxRateService.currentRate(businessId)));
 
         String businessName = businessRepo.findById(businessId).map(Business::getNom).orElse("?");
-        events.publishEvent(new ShiftOpenedEvent(actor.getUsername(), actor.isWebhooksEnabled(),
+        events.publishEvent(new ShiftOpenedEvent(actor.getDisplayName(), actor.isWebhooksEnabled(),
                 businessName, session.getOpenedAt()));
         return SessionDto.from(session);
     }
@@ -81,7 +81,7 @@ public class SessionService {
         session.close(factures.size(), totalSales, totalCost, totalProfit, businessShare, workerShare);
         WorkSession closed = sessionRepo.update(session);
 
-        events.publishEvent(new ShiftClosedEvent(actor.getUsername(), actor.isWebhooksEnabled(),
+        events.publishEvent(new ShiftClosedEvent(actor.getDisplayName(), actor.isWebhooksEnabled(),
                 closed.getOrdersCount(), closed.getTotalSales(), closed.getTotalProfit(),
                 closed.getBusinessShare(), closed.getWorkerShare(), closed.getOpenedAt(), closed.getClosedAt()));
         return SessionDto.from(closed);

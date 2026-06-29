@@ -1,5 +1,6 @@
+// Septim insécable : montants toujours en entiers (arrondi).
 const moneyFormatter = new Intl.NumberFormat('fr-FR', {
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 0,
   minimumFractionDigits: 0,
 })
 

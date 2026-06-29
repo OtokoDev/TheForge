@@ -9,7 +9,7 @@
 
   const ORANGE = '#E8590C', GREEN = '#5BBF73', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', INPUT_BG = '#15110e', BORDER = '1px solid rgba(255,255,255,0.07)', DEFAULT_CAT = '#7d90a6'
-  const fmt = (n) => Number(n).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   const itemColor = (i) => i?.familyColor ?? DEFAULT_CAT
   const stepBtn = 'width:28px; height:28px; background:#232120; border:1px solid rgba(255,255,255,0.1); border-radius:7px; color:#cfc8c2; font-size:16px; cursor:pointer;'
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')

@@ -11,7 +11,7 @@
   const ORANGE = '#E8590C'
   const GREEN = '#5fa890'
   const RED = '#ed8472'
-  const fmt = (n) => Number(n ?? 0).toLocaleString('fr-FR')
+  const fmt = (n) => Math.round(Number(n ?? 0)).toLocaleString('fr-FR')
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
 
   // Créances : seulement pour les Compagnies (comme la page Rachat).
