@@ -88,7 +88,7 @@ public class CreanceService {
                             .map(Product::getValeur).filter(java.util.Objects::nonNull).orElse(BigDecimal.ZERO);
             value = value.add(unit.multiply(BigDecimal.valueOf(line.quantity())));
             ledgerService.applyMovement(businessId, line.itemId(), line.quantity(), null, stockAccountId,
-                    MovementType.DEPOSIT, "CREANCE", null, "Dépôt " + farmer.getUsername(), actor.getId());
+                    MovementType.DEPOSIT, "CREANCE", null, "Dépôt " + farmer.getDisplayName(), actor.getId());
         }
 
         long amount = value.setScale(0, RoundingMode.CEILING).longValueExact();
@@ -96,7 +96,7 @@ public class CreanceService {
             repo.save(new CreanceEntry(businessId, farmerUserId, CreanceType.CREDIT, amount, reference, actor.getId()));
         }
         audit.record(businessId, actor.getId(), "CREANCE_DEPOT",
-                "Dépôt " + farmer.getUsername() + " — " + amount + " or (" + lines.size() + " ligne(s))");
+                "Dépôt " + farmer.getDisplayName() + " — " + amount + " septims (" + lines.size() + " ligne(s))");
         return balance(businessId, farmerUserId, farmer.getUsername(), farmer.getInGameName());
     }
 
@@ -115,11 +115,11 @@ public class CreanceService {
         UUID septimeId = itemRepo.findFirstBySystemTrue()
                 .orElseThrow(() -> new IllegalStateException("Item septime introuvable")).getId();
         ledgerService.applyMovement(businessId, septimeId, (int) amount, coffreAccountId, null,
-                MovementType.WITHDRAWAL, "CREANCE", null, "Paiement " + farmer.getUsername(), actor.getId());
+                MovementType.WITHDRAWAL, "CREANCE", null, "Paiement " + farmer.getDisplayName(), actor.getId());
 
         repo.save(new CreanceEntry(businessId, farmerUserId, CreanceType.PAIEMENT, amount, reference, actor.getId()));
         audit.record(businessId, actor.getId(), "CREANCE_PAIEMENT",
-                "Paiement " + farmer.getUsername() + " — " + amount + " or");
+                "Paiement " + farmer.getDisplayName() + " — " + amount + " septims");
         return balance(businessId, farmerUserId, farmer.getUsername(), farmer.getInGameName());
     }
 
@@ -158,7 +158,7 @@ public class CreanceService {
         return repo.findByBusinessIdAndFarmerUserIdOrderByCreatedAtDesc(businessId, farmerUserId).stream()
                 .map(e -> new CreanceEntryDto(e.getType(), e.getAmount(), e.getReference(),
                         names.computeIfAbsent(e.getCreatedBy(),
-                                id -> userRepo.findById(id).map(User::getUsername).orElse("?")),
+                                id -> userRepo.findById(id).map(User::getDisplayName).orElse("?")),
                         e.getCreatedAt()))
                 .toList();
     }

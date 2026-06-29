@@ -207,7 +207,7 @@ public class StatsService {
             long[] v = e.getValue();
             double caHeure = v[3] == 0 ? 0 : v[0] / (v[3] / 60.0);
             String name = names.computeIfAbsent(e.getKey(),
-                    id -> userRepo.findById(id).map(User::getUsername).orElse("?"));
+                    id -> userRepo.findById(id).map(User::getDisplayName).orElse("?"));
             return new ForgeronsDto.ForgeronStat(e.getKey().toString(), name, v[0], v[1], (int) v[2], v[3], caHeure);
         }).sorted(Comparator.comparingLong(ForgeronsDto.ForgeronStat::ca).reversed()).toList();
         return new ForgeronsDto(list);
@@ -304,7 +304,9 @@ public class StatsService {
                 .map(e -> new CreancesStatsDto.DayCreance(e.getKey(), e.getValue()[0], e.getValue()[1])).toList();
         List<CreancesStatsDto.FarmerStat> top = farmers.stream()
                 .sorted(Comparator.comparingLong(CreanceFarmerDto::remaining).reversed()).limit(10)
-                .map(f -> new CreancesStatsDto.FarmerStat(f.farmerUsername(), f.totalCredit(), f.totalPaid(), f.remaining()))
+                .map(f -> new CreancesStatsDto.FarmerStat(
+                        f.farmerInGameName() != null && !f.farmerInGameName().isBlank() ? f.farmerInGameName() : f.farmerUsername(),
+                        f.totalCredit(), f.totalPaid(), f.remaining()))
                 .toList();
         return new CreancesStatsDto(totalDu, totalCredit, totalPaid, ratio, serie, top);
     }

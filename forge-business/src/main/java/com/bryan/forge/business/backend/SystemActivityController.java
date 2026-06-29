@@ -38,7 +38,7 @@ public class SystemActivityController {
                 .map(e -> new ActivityDto(
                         e.getAction(), e.getDetails(),
                         e.getUserId() == null ? "anonyme"
-                                : names.computeIfAbsent(e.getUserId(), id -> userRepo.findById(id).map(User::getUsername).orElse("?")),
+                                : names.computeIfAbsent(e.getUserId(), id -> userRepo.findById(id).map(User::getDisplayName).orElse("?")),
                         e.getCreatedAt()))
                 .toList();
     }
