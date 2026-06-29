@@ -7,6 +7,7 @@ import com.bryan.forge.billing.backend.dto.FactureLineDto;
 import com.bryan.forge.billing.datamodel.Facture;
 import com.bryan.forge.billing.datamodel.FactureLine;
 import com.bryan.forge.billing.datamodel.FactureStatus;
+import com.bryan.forge.billing.datamodel.TaxBase;
 import com.bryan.forge.billing.datarepository.FactureLineRepository;
 import com.bryan.forge.billing.datarepository.FactureRepository;
 import com.bryan.forge.billing.datarepository.SessionRepository;
@@ -256,7 +257,11 @@ public class FactureService {
 
         BigDecimal totalProfit = BigDecimal.valueOf(totalAmount).subtract(totalCost);
         BigDecimal taxRate = taxRateService.currentRate(businessId);
-        BigDecimal businessShare = totalProfit.multiply(taxRate);
+        // Assiette de la taxe : sur le CA ou sur le bénéfice, selon le réglage du business.
+        BigDecimal assiette = taxRateService.currentBase(businessId) == TaxBase.REVENUE
+                ? BigDecimal.valueOf(totalAmount)
+                : totalProfit;
+        BigDecimal businessShare = assiette.multiply(taxRate);
         BigDecimal workerShare = totalProfit.subtract(businessShare);
 
         facture.setStatus(FactureStatus.VALIDEE);

@@ -2,6 +2,7 @@ package com.bryan.forge.billing.backend;
 
 import com.bryan.forge.billing.backend.dto.TaxRateDto;
 import com.bryan.forge.billing.backend.dto.TaxRateHistoryDto;
+import com.bryan.forge.billing.datamodel.TaxBase;
 import com.bryan.forge.billing.datamodel.TaxRate;
 import com.bryan.forge.billing.datarepository.TaxRateRepository;
 import com.bryan.forge.business.backend.BusinessAccessService;
@@ -34,8 +35,8 @@ public class TaxRateService {
         requireBusiness(businessId);
         access.requireView(actor, businessId);
         return repo.findByBusinessIdAndValidToIsNull(businessId)
-                .map(t -> new TaxRateDto(t.getRate(), t.getValidFrom()))
-                .orElse(new TaxRateDto(BigDecimal.ZERO, null));
+                .map(t -> new TaxRateDto(t.getRate(), t.getBase(), t.getValidFrom()))
+                .orElse(new TaxRateDto(BigDecimal.ZERO, TaxBase.PROFIT, null));
     }
 
     /** Taux courant pour usage interne (factures) ; 0 si non défini. */
@@ -44,9 +45,15 @@ public class TaxRateService {
         return repo.findByBusinessIdAndValidToIsNull(businessId).map(TaxRate::getRate).orElse(BigDecimal.ZERO);
     }
 
+    /** Assiette courante pour usage interne (factures) ; PROFIT si non défini. */
+    @Transactional
+    public TaxBase currentBase(UUID businessId) {
+        return repo.findByBusinessIdAndValidToIsNull(businessId).map(TaxRate::getBase).orElse(TaxBase.PROFIT);
+    }
+
     /** Définit le taux courant : clôture le précédent, en crée un nouveau (historique conservé). */
     @Transactional
-    public TaxRateDto setRate(User actor, UUID businessId, BigDecimal rate) {
+    public TaxRateDto setRate(User actor, UUID businessId, BigDecimal rate, TaxBase base) {
         requireBusiness(businessId);
         access.requireAdmin(actor, businessId);
         if (rate == null || rate.signum() < 0 || rate.compareTo(BigDecimal.ONE) > 0) {
@@ -59,11 +66,11 @@ public class TaxRateService {
             // courantes → viole uq_tax_rate_current.
             repo.flush();
         });
-        TaxRate taxRate = new TaxRate(businessId, rate);
+        TaxRate taxRate = new TaxRate(businessId, rate, base == null ? TaxBase.PROFIT : base);
         taxRate.setCreatedBy(actor.getId());
         taxRate.setModifiedBy(actor.getId());
         TaxRate saved = repo.save(taxRate);
-        return new TaxRateDto(saved.getRate(), saved.getValidFrom());
+        return new TaxRateDto(saved.getRate(), saved.getBase(), saved.getValidFrom());
     }
 
     @Transactional

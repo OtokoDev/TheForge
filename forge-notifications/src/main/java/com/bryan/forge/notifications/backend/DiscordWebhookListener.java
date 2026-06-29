@@ -9,6 +9,7 @@ import io.micronaut.scheduling.annotation.Async;
 import jakarta.inject.Singleton;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -54,27 +55,34 @@ public class DiscordWebhookListener {
     @Async
     void onFactureValidated(FactureValidatedEvent e) {
         if (!e.actorWebhooksEnabled()) return;
+        // Chiffres entiers (septim insécable) et cohérents : bénéfice = total − coût ;
+        // part forgeron = bénéfice − part business.
+        long cost = round(e.totalCost());
+        long profit = e.totalAmount() - cost;
+        long business = round(e.businessShare());
         webhooks.send(ordersUrl, "FACTURE", embed("Facture #" + pad(e.numero()) + " validée", GREEN, List.of(
                 field("Forgeron", e.actorUsername()),
                 field("Total", money(e.totalAmount())),
-                field("Coût de revient", money(e.totalCost())),
-                field("Bénéfice", money(e.totalProfit())),
-                field("Part business", money(e.businessShare())),
-                field("Part forgeron", money(e.workerShare())))));
+                field("Coût de revient", money(cost)),
+                field("Bénéfice", money(profit)),
+                field("Part business", money(business)),
+                field("Part forgeron", money(profit - business)))));
     }
 
     @EventListener
     @Async
     void onShiftClosed(ShiftClosedEvent e) {
         if (!e.actorWebhooksEnabled()) return;
+        long profit = round(e.totalProfit());
+        long business = round(e.businessShare());
         webhooks.send(shopUrl, "SHIFT_CLOSE", embed("Fin de service", RED, List.of(
                 field("Forgeron", e.actorUsername()),
                 field("Durée", duration(e.openedAt(), e.closedAt())),
                 field("Factures", String.valueOf(e.ordersCount())),
                 field("CA", money(e.totalSales())),
-                field("Bénéfice", money(e.totalProfit())),
-                field("Part business", money(e.businessShare())),
-                field("Part forgeron", money(e.workerShare())))));
+                field("Bénéfice", money(profit)),
+                field("Part business", money(business)),
+                field("Part forgeron", money(profit - business)))));
     }
 
     // ── Helpers embed ───────────────────────────────────────────────────────
@@ -96,8 +104,9 @@ public class DiscordWebhookListener {
         return amount + " septims";
     }
 
-    private static String money(BigDecimal amount) {
-        return amount.stripTrailingZeros().toPlainString() + " septims";
+    /** Arrondi entier (septim insécable), HALF_UP. */
+    private static long round(BigDecimal amount) {
+        return amount.setScale(0, RoundingMode.HALF_UP).longValueExact();
     }
 
     private static String pad(long numero) {

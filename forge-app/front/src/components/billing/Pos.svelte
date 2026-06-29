@@ -29,6 +29,7 @@
   let mat = $state('all')
   let cart = $state(edit ? Object.fromEntries(edit.lines.map((l) => [l.itemId, l.quantity])) : {})
   let client = $state(edit?.clientName ?? '')
+  let priceOverrides = $state(edit ? Object.fromEntries(edit.lines.map((l) => [l.itemId, l.unitPrice])) : {})
   let paid = $state(true)
 
   $effect(() => {
@@ -76,7 +77,15 @@
   })
   let itemById = $derived(new Map(items.map((i) => [i.id, i])))
   let lines = $derived(Object.entries(cart).map(([id, qty]) => ({ id, item: itemById.get(id), qty })))
-  let total = $derived(lines.reduce((s, l) => s + (prices.get(l.id) ?? 0) * l.qty, 0))
+  // Prix effectif : prix négocié saisi si présent et valide, sinon prix catalogue.
+  const priceOf = (id) => {
+    const raw = priceOverrides[id]
+    if (raw == null || raw === '') return prices.get(id) ?? 0
+    const n = Number(raw)
+    return Number.isNaN(n) || n < 0 ? (prices.get(id) ?? 0) : n
+  }
+  const setPrice = (id, val) => (priceOverrides = { ...priceOverrides, [id]: val })
+  let total = $derived(lines.reduce((s, l) => s + priceOf(l.id) * l.qty, 0))
   let count = $derived(lines.reduce((s, l) => s + l.qty, 0))
 
   function add(id) {
@@ -91,7 +100,7 @@
 
   async function emit(asDraft) {
     if (Object.keys(cart).length === 0) return notifyError('Panier vide')
-    const body = { lines: lines.map((l) => ({ itemId: l.id, quantity: l.qty })), clientName: client || null }
+    const body = { lines: lines.map((l) => ({ itemId: l.id, quantity: l.qty, unitPrice: priceOf(l.id) })), clientName: client || null }
     try {
       let factureId = editId
       if (editId) {
@@ -174,14 +183,16 @@
               <div style="width:32px; height:32px; border-radius:8px; background:{itemColor(l.item)}; display:flex; align-items:center; justify-content:center; color:#16110d; font-weight:800; font-size:13px; flex:none;">{(l.item?.name ?? '?').slice(0, 2).toUpperCase()}</div>
               <div style="flex:1; min-width:0; line-height:1.3;">
                 <div style="color:{TEXT}; font-weight:600; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{l.item?.name}</div>
-                <div style="color:{MUTED}; font-size:12px;">{fmt(prices.get(l.id) ?? 0)} / u</div>
+                <div style="color:{MUTED}; font-size:12px; display:flex; align-items:center; gap:4px;">
+                  <input type="number" min="0" step="1" value={priceOverrides[l.id] ?? (prices.get(l.id) ?? 0)} oninput={(e) => setPrice(l.id, e.currentTarget.value)} aria-label="Prix négocié" style="width:62px; background:{INPUT_BG}; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:{TEXT}; font-size:12px; padding:2px 6px; outline:none;" /> / u
+                </div>
               </div>
               <div style="display:flex; align-items:center; gap:5px; flex:none;">
                 <button onclick={() => dec(l.id)} style={stepBtn}>−</button>
                 <span style="min-width:24px; text-align:center; color:{TEXT}; font-weight:700;">{l.qty}</span>
                 <button onclick={() => add(l.id)} style={stepBtn}>+</button>
               </div>
-              <div style="width:74px; text-align:right; color:{TEXT}; font-weight:700; font-size:13.5px; font-variant-numeric:tabular-nums; flex:none;">{fmt((prices.get(l.id) ?? 0) * l.qty)}</div>
+              <div style="width:74px; text-align:right; color:{TEXT}; font-weight:700; font-size:13.5px; font-variant-numeric:tabular-nums; flex:none;">{fmt(priceOf(l.id) * l.qty)}</div>
             </div>
           {/each}
         {/if}

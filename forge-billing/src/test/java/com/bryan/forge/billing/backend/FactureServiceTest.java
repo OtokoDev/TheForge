@@ -6,6 +6,7 @@ import com.bryan.forge.billing.backend.dto.FactureDto;
 import com.bryan.forge.billing.datamodel.Facture;
 import com.bryan.forge.billing.datamodel.FactureLine;
 import com.bryan.forge.billing.datamodel.FactureStatus;
+import com.bryan.forge.billing.datamodel.TaxBase;
 import com.bryan.forge.billing.datarepository.FactureLineRepository;
 import com.bryan.forge.billing.datarepository.FactureRepository;
 import com.bryan.forge.billing.datarepository.SessionRepository;
@@ -179,6 +180,34 @@ class FactureServiceTest {
 
         verify(lineRepo).deleteByFactureId(fid);   // anciennes lignes effacées
         verify(lineRepo).save(any(FactureLine.class)); // nouvelle ligne insérée
+    }
+
+    @Test
+    void taxeSurLeCA_partBusinessSurLeChiffreDAffaires() {
+        Business business = mock(Business.class);
+        Facture facture = new Facture(biz, 1, UUID.randomUUID(), null, null);
+        FactureLine line = new FactureLine(fid, itemX, 1, new BigDecimal("100")); // CA = 100
+        Item septime = mock(Item.class);
+        when(septime.getId()).thenReturn(UUID.randomUUID());
+
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+        when(accountRepo.findById(stock)).thenReturn(Optional.of(new Account(biz, "Stock", AccountKind.STOCK)));
+        when(accountRepo.findById(coffre)).thenReturn(Optional.of(new Account(biz, "Coffre", AccountKind.COFFRE)));
+        when(lineRepo.findByFactureId(fid)).thenReturn(List.of(line));
+        when(costingService.costOf(biz, itemX)).thenReturn(new BigDecimal("60")); // bénéfice = 40
+        when(taxRateService.currentRate(biz)).thenReturn(new BigDecimal("0.1"));
+        when(taxRateService.currentBase(biz)).thenReturn(TaxBase.REVENUE);
+        when(itemRepo.findFirstBySystemTrue()).thenReturn(Optional.of(septime));
+        when(itemRepo.findAll()).thenReturn(List.of());
+        when(ledgerService.balanceOf(stock, itemX)).thenReturn(5L); // en stock
+
+        FactureDto dto = service.validate(actor, biz, fid, true, stock, coffre);
+
+        assertThat(dto.totalAmount()).isEqualTo(100L);
+        assertThat(dto.totalProfit()).isEqualByComparingTo("40");
+        assertThat(dto.businessShare()).isEqualByComparingTo("10"); // 100 × 0,1 sur le CA
+        assertThat(dto.workerShare()).isEqualByComparingTo("30");   // bénéfice 40 − 10
     }
 
     @Test

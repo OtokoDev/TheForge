@@ -27,6 +27,11 @@ public class TaxRate extends VersionedEntity {
     @Column(nullable = false, precision = 5, scale = 4)
     private BigDecimal rate;
 
+    /** Assiette : sur le bénéfice (PROFIT, défaut) ou sur le chiffre d'affaires (REVENUE). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private TaxBase base = TaxBase.PROFIT;
+
     @Column(name = "valid_from", nullable = false, updatable = false)
     private Instant validFrom = Instant.now();
 
@@ -35,14 +40,16 @@ public class TaxRate extends VersionedEntity {
 
     protected TaxRate() {}
 
-    public TaxRate(UUID businessId, BigDecimal rate) {
+    public TaxRate(UUID businessId, BigDecimal rate, TaxBase base) {
         this.businessId = businessId;
         this.rate = rate;
+        this.base = base;
     }
 
     public UUID getId()           { return id; }
     public UUID getBusinessId()   { return businessId; }
     public BigDecimal getRate()   { return rate; }
+    public TaxBase getBase()      { return base; }
     public Instant getValidFrom() { return validFrom; }
     public Instant getValidTo()   { return validTo; }
 
