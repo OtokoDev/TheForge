@@ -19,7 +19,7 @@ import java.util.UUID;
 @Singleton
 public class BusinessService {
 
-    private static final int MAX_LOGO_DATA_URL_LENGTH = 700_000; // ~500 Ko binaire
+    private static final int MAX_LOGO_DATA_URL_LENGTH = 1_400_000; // ~1 Mo binaire (base64 +33 %)
 
     private final BusinessRepository businessRepo;
     private final MembershipRepository membershipRepo;
@@ -78,7 +78,7 @@ public class BusinessService {
                 throw new IllegalArgumentException("Image invalide (data-URL image attendue)");
             }
             if (dataUrl.length() > MAX_LOGO_DATA_URL_LENGTH) {
-                throw new IllegalArgumentException("Image trop lourde (max ~500 Ko)");
+                throw new IllegalArgumentException("Image trop lourde (max ~1 Mo)");
             }
         }
         business.setLogoDataUrl(dataUrl == null || dataUrl.isBlank() ? null : dataUrl);

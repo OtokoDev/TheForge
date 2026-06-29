@@ -1,5 +1,5 @@
 <script>
-  import { Trash2 } from '@lucide/svelte'
+  import { Trash2, Upload } from '@lucide/svelte'
   import { api, ApiError } from '../../lib/api.js'
   import { currentBusinessId, currentLogo } from '../../lib/session.js'
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
@@ -10,8 +10,9 @@
   import Button from '../ui/Button.svelte'
 
   let { businessId } = $props()
-  const MAX_LOGO_BYTES = 500 * 1024
+  const MAX_LOGO_BYTES = 1024 * 1024
   let dataUrl = $state(null)
+  let fileInput = $state(null)
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
 
   $effect(() => {
@@ -34,10 +35,11 @@
   function onFile(e) {
     const file = e.currentTarget.files?.[0]
     if (!file) return
-    if (file.size > MAX_LOGO_BYTES) return notifyError('Image trop lourde (max 500 Ko)')
+    if (file.size > MAX_LOGO_BYTES) return notifyError('Image trop lourde (max 1 Mo)')
     const reader = new FileReader()
     reader.onload = () => save(reader.result)
     reader.readAsDataURL(file)
+    e.currentTarget.value = '' // re-sélection du même fichier possible
   }
 </script>
 
@@ -52,11 +54,16 @@
       {/if}
     </div>
     <div class="flex flex-col gap-2">
-      <input type="file" accept="image/*" onchange={onFile} class="text-sm" />
-      {#if dataUrl}
-        <Button variant="ghost" size="sm" onclick={() => save(null)}><Trash2 size={16} /> Retirer</Button>
-      {/if}
-      <span class="text-xs text-muted-foreground">PNG/JPG, max 500 Ko.</span>
+      <input type="file" accept="image/*" bind:this={fileInput} onchange={onFile} class="hidden" />
+      <div class="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onclick={() => fileInput?.click()}>
+          <Upload size={16} /> {dataUrl ? "Changer l'image" : 'Importer une image'}
+        </Button>
+        {#if dataUrl}
+          <Button variant="ghost" size="sm" onclick={() => save(null)}><Trash2 size={16} /> Retirer</Button>
+        {/if}
+      </div>
+      <span class="text-xs text-muted-foreground">PNG/JPG, max 1 Mo.</span>
     </div>
   </CardContent>
 </Card>
