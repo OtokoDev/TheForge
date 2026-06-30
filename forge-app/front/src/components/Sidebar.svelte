@@ -2,7 +2,7 @@
   import { router } from 'svelte-spa-router'
   import {
     Gauge, FileText, ClipboardList, Anvil, Hammer, Coins, ScrollText, ChartLine,
-    Package, Settings, Globe, Boxes, User,
+    Wallet, Package, Settings, Globe, Boxes, User,
   } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { canAdminBusiness, canStaffView } from '../lib/roles.js'
@@ -18,6 +18,7 @@
     { href: '/rachat', label: 'Créances', icon: Coins },
     { href: '/main-courante', label: 'Main courante', icon: ScrollText },
     { href: '/statistiques', label: 'Statistiques', icon: ChartLine },
+    { href: '/finance', label: 'Finance', icon: Wallet },
     { href: '/catalogue', label: 'Catalogue', icon: Package },
   ]
 
