@@ -12,6 +12,9 @@ import com.bryan.forge.ledger.backend.dto.ItemBalanceDto;
 import com.bryan.forge.ledger.backend.dto.MovementDto;
 import com.bryan.forge.ledger.backend.dto.RecordMovementRequest;
 import com.bryan.forge.ledger.backend.dto.StockRowDto;
+import com.bryan.forge.ledger.backend.dto.SetThresholdRequest;
+import com.bryan.forge.ledger.backend.dto.ThresholdAlertDto;
+import com.bryan.forge.ledger.backend.dto.ThresholdDto;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -115,5 +118,22 @@ public class LedgerController {
     @Secured("ROLE_SYSTEM")
     public Map<String, Integer> seedStock(UUID businessId) {
         return Map.of("count", ledger.seedTestStock(currentUser.require(), businessId));
+    }
+
+    // ── Seuils d'alerte ───────────────────────────────────────────────────────
+
+    @Get("/thresholds")
+    public List<ThresholdDto> thresholds(UUID businessId) {
+        return ledger.thresholds(currentUser.require(), businessId);
+    }
+
+    @Put("/thresholds/{itemId}")
+    public void setThreshold(UUID businessId, UUID itemId, @Body SetThresholdRequest req) {
+        ledger.setThreshold(currentUser.require(), businessId, itemId, req.minQty());
+    }
+
+    @Get("/alerts")
+    public List<ThresholdAlertDto> alerts(UUID businessId) {
+        return ledger.alerts(currentUser.require(), businessId);
     }
 }

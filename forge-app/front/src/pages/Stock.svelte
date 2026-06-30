@@ -30,6 +30,8 @@
   let prices = $state(new Map())
   let stock = $state([])
   let movements = $state([])
+  let thresholds = $state(new Map())
+  let alerts = $state([])
 
   let query = $state('')
   let fam = $state('all')
@@ -66,6 +68,19 @@
     if (!id) return
     api(`/api/businesses/${id}/stock`).then((v) => (stock = v)).catch(fail)
     api(`/api/businesses/${id}/movements`).then((v) => (movements = v)).catch(fail)
+    api(`/api/businesses/${id}/alerts`).then((v) => (alerts = v)).catch(fail)
+    api(`/api/businesses/${id}/thresholds`).then((v) => (thresholds = new Map(v.map((t) => [t.itemId, t.minQty])))).catch(fail)
+  }
+
+  async function setThreshold(itemId, v) {
+    const minQty = Math.max(0, Math.round(Number(v) || 0))
+    try {
+      await api(`/api/businesses/${$currentBusinessId}/thresholds/${itemId}`, { method: 'PUT', body: JSON.stringify({ minQty }) })
+      notifySuccess('Seuil mis à jour')
+      loadStock()
+    } catch (e) {
+      fail(e)
+    }
   }
 
   $effect(() => {
@@ -271,6 +286,13 @@
       </div>
     </div>
 
+    {#if alerts.length > 0}
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:rgba(232,89,12,0.1); border:1px solid rgba(232,89,12,0.32); border-radius:11px; padding:11px 15px; margin-bottom:15px;">
+        <span style="color:#f5a06a; font-weight:700; font-size:13px;">⚠ {alerts.length} sous le seuil :</span>
+        <span style="color:#cfc8c2; font-size:12.5px;">{alerts.map((a) => `${a.itemName} (${a.stock}/${a.minQty})`).join(' · ')}</span>
+      </div>
+    {/if}
+
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:15px;">
       {#each [{ l: 'Valeur du stock', v: `${fmt(kpis.value)} septims` }, { l: 'Objets en stock', v: fmt(kpis.qty) }, { l: 'Références', v: fmt(kpis.refs) }, { l: 'Coffres', v: fmt(kpis.chests) }] as k (k.l)}
         <div style="background:{CARD}; border:{BORDER}; border-radius:12px; padding:15px 17px;">
@@ -372,6 +394,16 @@
                   <div style="color:{s.c}; font-size:17px; font-weight:700; margin-top:2px;">{s.v}</div>
                 </div>
               {/each}
+            </div>
+          {/if}
+
+          {#if selItemId && canAdmin}
+            <div style="display:flex; align-items:center; gap:10px; background:{INPUT_BG}; border:{BORDER}; border-radius:10px; padding:10px 12px;">
+              <div style="flex:1;">
+                <div style="color:{MUTED}; font-size:11px;">Seuil d'alerte (rupture)</div>
+                <div style="color:#6f6862; font-size:11px;">0 = aucune alerte</div>
+              </div>
+              <NumberInput variant="dark" class="w-24" value={String(thresholds.get(selItemId) ?? 0)} onchange={(v) => setThreshold(selItemId, v)} min={0} />
             </div>
           {/if}
 

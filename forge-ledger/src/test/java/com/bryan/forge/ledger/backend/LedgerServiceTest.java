@@ -14,6 +14,7 @@ import com.bryan.forge.ledger.datamodel.Movement;
 import com.bryan.forge.ledger.datamodel.MovementType;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
 import com.bryan.forge.ledger.datarepository.MovementRepository;
+import com.bryan.forge.ledger.datarepository.StockThresholdRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 
@@ -41,7 +42,8 @@ class LedgerServiceTest {
     @SuppressWarnings("unchecked")
     private final io.micronaut.context.event.ApplicationEventPublisher<Object> events =
             mock(io.micronaut.context.event.ApplicationEventPublisher.class);
-    private final LedgerService service = new LedgerService(accountRepo, movementRepo, itemRepo, businessRepo, access, em, events);
+    private final StockThresholdRepository thresholdRepo = mock(StockThresholdRepository.class);
+    private final LedgerService service = new LedgerService(accountRepo, movementRepo, itemRepo, businessRepo, access, em, events, thresholdRepo);
 
     private final User actor = mock(User.class);
     private final UUID biz = UUID.randomUUID();

@@ -17,12 +17,16 @@ import com.bryan.forge.ledger.backend.dto.ItemBalanceDto;
 import com.bryan.forge.ledger.backend.dto.MovementDto;
 import com.bryan.forge.ledger.backend.dto.RecordMovementRequest;
 import com.bryan.forge.ledger.backend.dto.StockRowDto;
+import com.bryan.forge.ledger.backend.dto.ThresholdAlertDto;
+import com.bryan.forge.ledger.backend.dto.ThresholdDto;
 import com.bryan.forge.ledger.datamodel.Account;
 import com.bryan.forge.ledger.datamodel.AccountKind;
 import com.bryan.forge.ledger.datamodel.Movement;
 import com.bryan.forge.ledger.datamodel.MovementType;
+import com.bryan.forge.ledger.datamodel.StockThreshold;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
 import com.bryan.forge.ledger.datarepository.MovementRepository;
+import com.bryan.forge.ledger.datarepository.StockThresholdRepository;
 import jakarta.inject.Singleton;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -49,11 +53,13 @@ public class LedgerService {
     private final BusinessAccessService access;
     private final EntityManager em;
     private final ApplicationEventPublisher<Object> events;
+    private final StockThresholdRepository thresholdRepo;
 
     public LedgerService(AccountRepository accountRepo, MovementRepository movementRepo,
                          ItemRepository itemRepo, BusinessRepository businessRepo,
                          BusinessAccessService access, EntityManager em,
-                         ApplicationEventPublisher<Object> events) {
+                         ApplicationEventPublisher<Object> events,
+                         StockThresholdRepository thresholdRepo) {
         this.accountRepo = accountRepo;
         this.movementRepo = movementRepo;
         this.itemRepo = itemRepo;
@@ -61,6 +67,7 @@ public class LedgerService {
         this.access = access;
         this.em = em;
         this.events = events;
+        this.thresholdRepo = thresholdRepo;
     }
 
     /**
@@ -337,6 +344,52 @@ public class LedgerService {
                 type, referenceType, referenceId, note, userId));
         events.publishEvent(new RealtimeEvent(businessId, "STOCK"));
         return saved;
+    }
+
+    // ── Seuils d'alerte (rupture) ─────────────────────────────────────────────
+
+    @Transactional
+    public List<ThresholdDto> thresholds(User actor, UUID businessId) {
+        requireBusiness(businessId);
+        access.requireView(actor, businessId);
+        return thresholdRepo.findByBusinessId(businessId).stream()
+                .map(t -> new ThresholdDto(t.getItemId(), t.getMinQty())).toList();
+    }
+
+    /** Définit (ou retire si minQty ≤ 0) le seuil d'alerte d'un item. ADMIN. */
+    @Transactional
+    public void setThreshold(User actor, UUID businessId, UUID itemId, int minQty) {
+        requireBusiness(businessId);
+        access.requireAdmin(actor, businessId);
+        if (minQty <= 0) {
+            thresholdRepo.deleteByBusinessIdAndItemId(businessId, itemId);
+            return;
+        }
+        thresholdRepo.findByBusinessIdAndItemId(businessId, itemId).ifPresentOrElse(
+                t -> { t.setMinQty(minQty); thresholdRepo.update(t); },
+                () -> thresholdRepo.save(new StockThreshold(businessId, itemId, minQty)));
+    }
+
+    /** Items dont le stock total (tous coffres) est sous leur seuil. */
+    @Transactional
+    public List<ThresholdAlertDto> alerts(User actor, UUID businessId) {
+        requireBusiness(businessId);
+        access.requireView(actor, businessId);
+        List<StockThreshold> ths = thresholdRepo.findByBusinessId(businessId);
+        if (ths.isEmpty()) return List.of();
+        Map<UUID, Long> totals = new HashMap<>();
+        for (Account a : accountRepo.findByBusinessId(businessId)) {
+            for (Map.Entry<UUID, Long> e : balanceMap(a.getId()).entrySet()) {
+                totals.merge(e.getKey(), e.getValue(), Long::sum);
+            }
+        }
+        Map<UUID, String> names = itemNames();
+        return ths.stream()
+                .map(t -> new ThresholdAlertDto(t.getItemId(), names.getOrDefault(t.getItemId(), "?"),
+                        totals.getOrDefault(t.getItemId(), 0L), t.getMinQty()))
+                .filter(a -> a.stock() < a.minQty())
+                .sorted(Comparator.comparingLong(ThresholdAlertDto::stock))
+                .toList();
     }
 
     /** Solde d'un item sur un compte (interne, sans contrôle d'accès — l'appelant l'a fait). */
