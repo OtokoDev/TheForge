@@ -3,6 +3,7 @@ import Facturation from '../pages/Facturation.svelte'
 import Commandes from '../pages/Commandes.svelte'
 import Atelier from '../pages/Atelier.svelte'
 import Stock from '../pages/Stock.svelte'
+import Achats from '../pages/Achats.svelte'
 import Rachat from '../pages/Rachat.svelte'
 import MainCourante from '../pages/MainCourante.svelte'
 import Statistiques from '../pages/Statistiques.svelte'
@@ -22,6 +23,7 @@ export const routes = {
   '/commandes': Commandes,
   '/atelier': Atelier,
   '/stock': Stock,
+  '/achats': Achats,
   '/rachat': Rachat,
   '/main-courante': MainCourante,
   '/statistiques': Statistiques,
