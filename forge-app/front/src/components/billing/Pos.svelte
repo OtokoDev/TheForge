@@ -88,6 +88,49 @@
   let total = $derived(lines.reduce((s, l) => s + priceOf(l.id) * l.qty, 0))
   let count = $derived(lines.reduce((s, l) => s + l.qty, 0))
 
+  // Réservation : simule ce que le panier consomme (miroir du backend craft-à-la-vente, 1 niveau).
+  // Objet en stock → vendu du stock ; sinon forgé → ses ingrédients sont décomptés. Sert à afficher
+  // le stock/forgeable restant par article et à bloquer un panier non réalisable avant émission.
+  let reservation = $derived.by(() => {
+    const rem = new Map(stockQty)
+    const info = new Map()
+    for (const l of lines) {
+      const have = rem.get(l.id) ?? 0
+      if (have >= l.qty) {
+        rem.set(l.id, have - l.qty)
+        info.set(l.id, { fromStock: true, consumes: [], ok: true })
+        continue
+      }
+      const recipe = recipes.get(l.id)
+      if (!recipe || recipe.length === 0) {
+        info.set(l.id, { fromStock: false, consumes: [], ok: false })
+        continue
+      }
+      let ok = true
+      const consumes = []
+      for (const c of recipe) {
+        const need = c.quantity * l.qty
+        const avail = rem.get(c.componentItemId) ?? 0
+        rem.set(c.componentItemId, avail - need)
+        consumes.push({ id: c.componentItemId, qty: need, missing: Math.max(0, need - avail) })
+        if (need > avail) ok = false
+      }
+      info.set(l.id, { fromStock: false, consumes, ok })
+    }
+    return { remaining: rem, info }
+  })
+  let cartOk = $derived(lines.every((l) => reservation.info.get(l.id)?.ok))
+
+  const nameOf = (id) => itemById.get(id)?.name ?? '?'
+  const remOf = (id) => reservation.remaining.get(id) ?? 0
+  const hasRecipe = (id) => (recipes.get(id)?.length ?? 0) > 0
+  const craftableOf = (id) => {
+    const recipe = recipes.get(id)
+    if (!recipe || recipe.length === 0) return 0
+    return Math.max(0, Math.min(...recipe.map((c) => Math.floor((reservation.remaining.get(c.componentItemId) ?? 0) / c.quantity))))
+  }
+  const addableOf = (id) => remOf(id) > 0 || craftableOf(id) > 0
+
   function add(id) {
     cart = { ...cart, [id]: (cart[id] ?? 0) + 1 }
   }
@@ -100,6 +143,7 @@
 
   async function emit(asDraft) {
     if (Object.keys(cart).length === 0) return notifyError('Panier vide')
+    if (!asDraft && !cartOk) return notifyError('Ressources insuffisantes pour certains objets forgés du panier')
     const body = { lines: lines.map((l) => ({ itemId: l.id, quantity: l.qty, unitPrice: priceOf(l.id) })), clientName: client || null }
     try {
       let factureId = editId
@@ -147,9 +191,9 @@
       <div style="height:6px;"></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         {#each catalogue as it (it.id)}
-          {@const st = stateOf(it)}
-          <button onclick={() => st.sellable && add(it.id)} disabled={!st.sellable}
-            style="text-align:left; background:{CARD}; border:{BORDER}; border-radius:11px; padding:13px; cursor:{st.sellable ? 'pointer' : 'not-allowed'}; opacity:{st.sellable ? 1 : 0.5}; display:flex; flex-direction:column; gap:9px;">
+          {@const can = addableOf(it.id)}
+          <button onclick={() => can && add(it.id)} disabled={!can}
+            style="text-align:left; background:{CARD}; border:{BORDER}; border-radius:11px; padding:13px; cursor:{can ? 'pointer' : 'not-allowed'}; opacity:{can ? 1 : 0.5}; display:flex; flex-direction:column; gap:9px;">
             <div style="display:flex; align-items:center; gap:10px;">
               <div style="width:34px; height:34px; border-radius:9px; background:{itemColor(it)}; display:flex; align-items:center; justify-content:center; color:#16110d; font-weight:800; font-size:14px; flex:none;">{it.name.slice(0, 2).toUpperCase()}</div>
               <div style="min-width:0; line-height:1.25;">
@@ -157,9 +201,10 @@
                 <div style="color:{MUTED}; font-size:11.5px;">{[it.familyName, it.materialName].filter(Boolean).join(' · ')}</div>
               </div>
             </div>
-            <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:{st.color}; background:{st.bg}; padding:3px 8px; border-radius:6px;">
-                <span style="width:6px; height:6px; border-radius:999px; background:{st.color};"></span>{st.label}
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <span style="display:inline-flex; align-items:center; gap:10px; font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums;">
+                <span style="color:{GREEN};"><i style="font-style:normal;">▦</i> stock {remOf(it.id)}</span>
+                {#if hasRecipe(it.id)}<span style="color:#d9a441;"><i style="font-style:normal;">⚒</i> forge {craftableOf(it.id)}</span>{/if}
               </span>
               <span style="color:{TEXT}; font-weight:700; font-size:14px; font-variant-numeric:tabular-nums;">{fmt(prices.get(it.id) ?? 0)}</span>
             </div>
@@ -179,11 +224,19 @@
           <div style="color:#6f6862; font-size:13.5px; text-align:center; padding:40px 0;">Clique un article pour l'ajouter</div>
         {:else}
           {#each lines as l (l.id)}
-            <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+            {@const inf = reservation.info.get(l.id)}
+            <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.06); background:{inf?.ok === false ? 'rgba(229,96,77,0.08)' : 'transparent'};">
               <div style="width:32px; height:32px; border-radius:8px; background:{itemColor(l.item)}; display:flex; align-items:center; justify-content:center; color:#16110d; font-weight:800; font-size:13px; flex:none;">{(l.item?.name ?? '?').slice(0, 2).toUpperCase()}</div>
               <div style="flex:1; min-width:0; line-height:1.3;">
                 <div style="color:{TEXT}; font-weight:600; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{l.item?.name}</div>
-                <div style="color:{MUTED}; font-size:12px; display:flex; align-items:center; gap:4px;">
+                {#if inf && !inf.ok}
+                  <div style="color:#E5604D; font-size:11px;">⚠ insuffisant{inf.consumes.some((c) => c.missing > 0) ? ` — manque ${inf.consumes.filter((c) => c.missing > 0).map((c) => `${c.missing} ${nameOf(c.id)}`).join(', ')}` : ''}</div>
+                {:else if inf?.fromStock}
+                  <div style="color:{GREEN}; font-size:11px;">depuis le stock</div>
+                {:else if inf}
+                  <div style="color:#d9a441; font-size:11px;">forgé · {inf.consumes.map((c) => `${c.qty} ${nameOf(c.id)}`).join(' · ')}</div>
+                {/if}
+                <div style="color:{MUTED}; font-size:12px; display:flex; align-items:center; gap:4px; margin-top:2px;">
                   <input type="number" min="0" step="1" value={priceOverrides[l.id] ?? (prices.get(l.id) ?? 0)} oninput={(e) => setPrice(l.id, e.currentTarget.value)} aria-label="Prix négocié" style="width:62px; background:{INPUT_BG}; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:{TEXT}; font-size:12px; padding:2px 6px; outline:none;" /> / u
                 </div>
               </div>
