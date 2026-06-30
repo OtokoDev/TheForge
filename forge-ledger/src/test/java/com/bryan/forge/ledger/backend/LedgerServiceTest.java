@@ -12,8 +12,10 @@ import com.bryan.forge.ledger.datamodel.Account;
 import com.bryan.forge.ledger.datamodel.AccountKind;
 import com.bryan.forge.ledger.datamodel.Movement;
 import com.bryan.forge.ledger.datamodel.MovementType;
+import com.bryan.forge.ledger.datamodel.StockBalance;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
 import com.bryan.forge.ledger.datarepository.MovementRepository;
+import com.bryan.forge.ledger.datarepository.StockBalanceRepository;
 import com.bryan.forge.ledger.datarepository.StockThresholdRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -43,16 +45,14 @@ class LedgerServiceTest {
     private final io.micronaut.context.event.ApplicationEventPublisher<Object> events =
             mock(io.micronaut.context.event.ApplicationEventPublisher.class);
     private final StockThresholdRepository thresholdRepo = mock(StockThresholdRepository.class);
-    private final LedgerService service = new LedgerService(accountRepo, movementRepo, itemRepo, businessRepo, access, em, events, thresholdRepo);
+    private final StockBalanceRepository stockBalanceRepo = mock(StockBalanceRepository.class);
+    private final LedgerService service = new LedgerService(accountRepo, movementRepo, itemRepo, businessRepo,
+            access, em, events, thresholdRepo, stockBalanceRepo);
 
     private final User actor = mock(User.class);
     private final UUID biz = UUID.randomUUID();
     private final UUID acc = UUID.randomUUID();
     private final UUID itemId = UUID.randomUUID();
-
-    private Movement movement(int qty, UUID from, UUID to) {
-        return new Movement(biz, itemId, qty, from, to, MovementType.TRANSFER, "MANUAL", null, null, null);
-    }
 
     @Test
     void projectionSoldeCorrect() {
@@ -61,13 +61,10 @@ class LedgerServiceTest {
         Item item = mock(Item.class);
         when(item.getId()).thenReturn(itemId);
         when(item.getName()).thenReturn("Lingot");
-        // Série : +10 (entrée), -3 (sortie) → solde attendu 7.
-        Movement in = movement(10, null, acc);
-        Movement out = movement(3, acc, null);
 
         when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
         when(accountRepo.findById(acc)).thenReturn(Optional.of(account));
-        when(movementRepo.findByFromAccountIdOrToAccountId(acc, acc)).thenReturn(List.of(in, out));
+        when(stockBalanceRepo.findByAccountId(acc)).thenReturn(List.of(new StockBalance(acc, itemId, 7L)));
         when(itemRepo.findAll()).thenReturn(List.of(item));
 
         List<ItemBalanceDto> balances = service.balances(actor, biz, acc);
@@ -83,12 +80,11 @@ class LedgerServiceTest {
         Account from = new Account(biz, "Stock", AccountKind.STOCK);
         Item item = mock(Item.class);
         when(item.getName()).thenReturn("Épée");
-        Movement in = movement(2, null, acc); // disponible : 2
 
         when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
         when(accountRepo.findById(acc)).thenReturn(Optional.of(from));
         when(itemRepo.findById(itemId)).thenReturn(Optional.of(item));
-        when(movementRepo.findByFromAccountIdOrToAccountId(acc, acc)).thenReturn(List.of(in));
+        when(stockBalanceRepo.findByAccountIdAndItemId(acc, itemId)).thenReturn(Optional.of(new StockBalance(acc, itemId, 2L)));
 
         var req = new RecordMovementRequest(itemId, 5, acc, null, MovementType.WITHDRAWAL, null);
 
@@ -104,12 +100,11 @@ class LedgerServiceTest {
         Account from = new Account(biz, "Stock", AccountKind.STOCK);
         Item item = mock(Item.class);
         when(item.getName()).thenReturn("Épée");
-        Movement in = movement(10, null, acc); // disponible : 10
 
         when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
         when(accountRepo.findById(acc)).thenReturn(Optional.of(from));
         when(itemRepo.findById(itemId)).thenReturn(Optional.of(item));
-        when(movementRepo.findByFromAccountIdOrToAccountId(acc, acc)).thenReturn(List.of(in));
+        when(stockBalanceRepo.findByAccountIdAndItemId(acc, itemId)).thenReturn(Optional.of(new StockBalance(acc, itemId, 10L)));
         when(itemRepo.findAll()).thenReturn(List.of(item));
         when(accountRepo.findByBusinessId(biz)).thenReturn(List.of());
         when(movementRepo.save(any(Movement.class))).thenAnswer(inv -> inv.getArgument(0));

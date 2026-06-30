@@ -23,9 +23,11 @@ import com.bryan.forge.ledger.datamodel.Account;
 import com.bryan.forge.ledger.datamodel.AccountKind;
 import com.bryan.forge.ledger.datamodel.Movement;
 import com.bryan.forge.ledger.datamodel.MovementType;
+import com.bryan.forge.ledger.datamodel.StockBalance;
 import com.bryan.forge.ledger.datamodel.StockThreshold;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
 import com.bryan.forge.ledger.datarepository.MovementRepository;
+import com.bryan.forge.ledger.datarepository.StockBalanceRepository;
 import com.bryan.forge.ledger.datarepository.StockThresholdRepository;
 import jakarta.inject.Singleton;
 import jakarta.persistence.EntityManager;
@@ -54,12 +56,13 @@ public class LedgerService {
     private final EntityManager em;
     private final ApplicationEventPublisher<Object> events;
     private final StockThresholdRepository thresholdRepo;
+    private final StockBalanceRepository stockBalanceRepo;
 
     public LedgerService(AccountRepository accountRepo, MovementRepository movementRepo,
                          ItemRepository itemRepo, BusinessRepository businessRepo,
                          BusinessAccessService access, EntityManager em,
                          ApplicationEventPublisher<Object> events,
-                         StockThresholdRepository thresholdRepo) {
+                         StockThresholdRepository thresholdRepo, StockBalanceRepository stockBalanceRepo) {
         this.accountRepo = accountRepo;
         this.movementRepo = movementRepo;
         this.itemRepo = itemRepo;
@@ -68,6 +71,7 @@ public class LedgerService {
         this.em = em;
         this.events = events;
         this.thresholdRepo = thresholdRepo;
+        this.stockBalanceRepo = stockBalanceRepo;
     }
 
     /**
@@ -276,7 +280,7 @@ public class LedgerService {
         lockAccounts(req.fromAccountId(), req.toAccountId());
         // Garde stock négatif : le compte source doit détenir assez de l'item.
         if (req.fromAccountId() != null) {
-            long available = balanceMap(req.fromAccountId()).getOrDefault(req.itemId(), 0L);
+            long available = balanceOf(req.fromAccountId(), req.itemId());
             if (available < req.quantity()) {
                 throw new IllegalStateException("Stock insuffisant pour " + item.getName()
                         + " : " + req.quantity() + " demandé(s), " + available + " disponible(s)");
@@ -287,6 +291,8 @@ public class LedgerService {
         Movement saved = movementRepo.save(new Movement(
                 businessId, req.itemId(), req.quantity(), req.fromAccountId(), req.toAccountId(),
                 req.type(), "MANUAL", null, note, actor.getId()));
+        applyDelta(req.fromAccountId(), req.itemId(), -req.quantity());
+        applyDelta(req.toAccountId(), req.itemId(), req.quantity());
         events.publishEvent(new RealtimeEvent(businessId, "STOCK"));
 
         return toDto(saved, itemNames(), accountNames(businessId));
@@ -334,7 +340,7 @@ public class LedgerService {
                                   UUID referenceId, String note, UUID userId) {
         lockAccounts(fromAccountId, toAccountId);
         if (fromAccountId != null) {
-            long available = balanceMap(fromAccountId).getOrDefault(itemId, 0L);
+            long available = balanceOf(fromAccountId, itemId);
             if (available < quantity) {
                 throw new IllegalStateException("Stock insuffisant : " + quantity
                         + " demandé(s), " + available + " disponible(s)");
@@ -342,6 +348,8 @@ public class LedgerService {
         }
         Movement saved = movementRepo.save(new Movement(businessId, itemId, quantity, fromAccountId, toAccountId,
                 type, referenceType, referenceId, note, userId));
+        applyDelta(fromAccountId, itemId, -quantity);
+        applyDelta(toAccountId, itemId, quantity);
         events.publishEvent(new RealtimeEvent(businessId, "STOCK"));
         return saved;
     }
@@ -392,22 +400,27 @@ public class LedgerService {
                 .toList();
     }
 
-    /** Solde d'un item sur un compte (interne, sans contrôle d'accès — l'appelant l'a fait). */
+    /** Solde d'un item sur un compte (matérialisé, O(1) ; sans contrôle d'accès). */
     @Transactional
     public long balanceOf(UUID accountId, UUID itemId) {
-        return balanceMap(accountId).getOrDefault(itemId, 0L);
+        return stockBalanceRepo.findByAccountIdAndItemId(accountId, itemId).map(StockBalance::getQty).orElse(0L);
+    }
+
+    /** Applique le delta au solde matérialisé (upsert). Appelé sous le verrou du compte. */
+    private void applyDelta(UUID accountId, UUID itemId, long delta) {
+        if (accountId == null || delta == 0) return;
+        stockBalanceRepo.findByAccountIdAndItemId(accountId, itemId).ifPresentOrElse(
+                b -> { b.setQty(b.getQty() + delta); stockBalanceRepo.update(b); },
+                () -> stockBalanceRepo.save(new StockBalance(accountId, itemId, delta)));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    /** Solde par item d'un compte = Σ(entrées vers le compte) − Σ(sorties du compte). */
+    /** Soldes par item d'un compte (lecture du solde matérialisé). */
     private Map<UUID, Long> balanceMap(UUID accountId) {
         Map<UUID, Long> balances = new HashMap<>();
-        for (Movement m : movementRepo.findByFromAccountIdOrToAccountId(accountId, accountId)) {
-            long sign = 0;
-            if (accountId.equals(m.getToAccountId())) sign += 1;
-            if (accountId.equals(m.getFromAccountId())) sign -= 1;
-            balances.merge(m.getItemId(), sign * m.getQuantity(), Long::sum);
+        for (StockBalance b : stockBalanceRepo.findByAccountId(accountId)) {
+            balances.put(b.getItemId(), b.getQty());
         }
         return balances;
     }
