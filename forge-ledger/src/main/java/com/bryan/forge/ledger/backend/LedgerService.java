@@ -179,6 +179,28 @@ public class LedgerService {
         return new InventoryResultDto(adjusted);
     }
 
+    /**
+     * DEV/SYSTEM : remplit le compte stock par défaut de 100 unités de chaque item du
+     * catalogue (hors item système septim), pour faciliter les tests. Renvoie le nb ajouté.
+     */
+    @Transactional
+    public int seedTestStock(User actor, UUID businessId) {
+        Business b = businessRepo.findById(businessId)
+                .orElseThrow(() -> new NoSuchElementException("Business introuvable : " + businessId));
+        UUID stock = b.getDefaultStockAccountId();
+        if (stock == null) {
+            throw new IllegalStateException("Aucun compte stock par défaut — configure-le d'abord.");
+        }
+        int count = 0;
+        for (Item item : itemRepo.findAll()) {
+            if (item.isSystem()) continue;
+            applyMovement(businessId, item.getId(), 100, null, stock,
+                    MovementType.ADJUSTMENT, "DEV_SEED", null, "Remplissage test (×100)", actor.getId());
+            count++;
+        }
+        return count;
+    }
+
     /** Comptes par défaut du business (utilisés par le POS de facturation). */
     @Transactional
     public DefaultsDto getDefaults(User actor, UUID businessId) {

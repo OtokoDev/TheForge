@@ -25,6 +25,7 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -99,5 +100,12 @@ public class LedgerController {
     @Status(HttpStatus.CREATED)
     public MovementDto record(UUID businessId, @Body RecordMovementRequest req) {
         return ledger.record(currentUser.require(), businessId, req);
+    }
+
+    /** DEV/SYSTEM : remplit le stock par défaut de 100 de chaque produit (tests). */
+    @Post("/dev/seed-stock")
+    @Secured("ROLE_SYSTEM")
+    public Map<String, Integer> seedStock(UUID businessId) {
+        return Map.of("count", ledger.seedTestStock(currentUser.require(), businessId));
     }
 }
