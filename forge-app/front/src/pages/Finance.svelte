@@ -17,6 +17,9 @@
   let summary = $state(null)
   let owed = $state([])
   let expenses = $state([])
+  let cityTaxDue = $state(0)
+  let showCityTax = $state(false)
+  let cityTaxAmount = $state('')
 
   // Paie
   let payTarget = $state(null)
@@ -34,6 +37,24 @@
     api(`/api/businesses/${id}/finance/summary`).then((v) => (summary = v)).catch(fail)
     api(`/api/businesses/${id}/finance/owed`).then((v) => (owed = v)).catch(fail)
     api(`/api/businesses/${id}/finance/expenses`).then((v) => (expenses = v)).catch(fail)
+    api(`/api/businesses/${id}/finance/city-tax`).then((v) => (cityTaxDue = v.due)).catch(fail)
+  }
+
+  function openCityTax() {
+    cityTaxAmount = String(Math.max(0, cityTaxDue))
+    showCityTax = true
+  }
+  async function payCityTax() {
+    const amount = Math.round(Number(cityTaxAmount))
+    if (!amount || amount <= 0) return notifyError('Montant invalide')
+    try {
+      await api(`/api/businesses/${$currentBusinessId}/finance/city-tax`, { method: 'POST', body: JSON.stringify({ amount }) })
+      notifySuccess('Taxe de la ville reversée')
+      showCityTax = false
+      load()
+    } catch (e) {
+      fail(e)
+    }
   }
   $effect(() => {
     $currentBusinessId
@@ -96,6 +117,16 @@
     {@render kpi('Dépenses', summary?.depenses)}
     {@render kpi('Résultat', summary?.resultat, true)}
   </div>
+
+  {#if canAdmin}
+    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4" style="border-color:rgba(232,89,12,0.32);">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Taxe de la ville</div>
+        <div class="mt-1 text-sm">Dû : <strong style="color:#f5a06a;">{fmt(cityTaxDue)} septims</strong> <span class="text-muted-foreground">(part entreprise non encore reversée)</span></div>
+      </div>
+      <Button onclick={openCityTax} disabled={cityTaxDue <= 0}>Reverser</Button>
+    </div>
+  {/if}
 
   <!-- Paie -->
   <div class="mt-6">
@@ -198,6 +229,20 @@
       <div class="flex justify-end gap-2">
         <Button variant="outline" onclick={() => (showExpense = false)}>Annuler</Button>
         <Button onclick={addExpense}>Enregistrer</Button>
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Modal taxe ville -->
+  <Modal bind:open={showCityTax} title="Reverser la taxe de la ville">
+    <div class="flex flex-col gap-3">
+      <p class="text-sm text-muted-foreground">Dû : <strong class="text-foreground">{fmt(cityTaxDue)} septims</strong>. Les septimes sortent du coffre (dépense historisée).</p>
+      <label class="flex flex-col gap-1 text-xs text-muted-foreground">Montant
+        <NumberInput value={cityTaxAmount} onchange={(v) => (cityTaxAmount = v)} min={0} class="w-40" />
+      </label>
+      <div class="flex justify-end gap-2">
+        <Button variant="outline" onclick={() => (showCityTax = false)}>Annuler</Button>
+        <Button onclick={payCityTax}>Reverser</Button>
       </div>
     </div>
   </Modal>

@@ -1,5 +1,6 @@
 package com.bryan.forge.billing.backend;
 
+import com.bryan.forge.billing.backend.dto.CityTaxRequest;
 import com.bryan.forge.billing.backend.dto.CreateExpenseRequest;
 import com.bryan.forge.billing.backend.dto.ExpenseDto;
 import com.bryan.forge.billing.backend.dto.FinanceSummaryDto;
@@ -17,6 +18,7 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Finance d'un business : paie des forgerons, dépenses, compte de résultat. */
@@ -61,5 +63,16 @@ public class FinanceController {
     @Get("/summary")
     public FinanceSummaryDto summary(UUID businessId) {
         return service.summary(currentUser.require(), businessId);
+    }
+
+    /** Taxe de la ville due (part entreprise cumulée − déjà reversé). */
+    @Get("/city-tax")
+    public Map<String, Long> cityTax(UUID businessId) {
+        return Map.of("due", service.cityTaxDue(currentUser.require(), businessId));
+    }
+
+    @Post("/city-tax")
+    public ExpenseDto payCityTax(UUID businessId, @Body CityTaxRequest req) {
+        return service.payCityTax(currentUser.require(), businessId, req.amount());
     }
 }

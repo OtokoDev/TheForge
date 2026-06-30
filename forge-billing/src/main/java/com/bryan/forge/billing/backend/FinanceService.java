@@ -151,6 +151,28 @@ public class FinanceService {
         return new FinanceSummaryDto(ca, cout, benefice, partBusiness, partForgerons, paie, depenses, partBusiness - depenses);
     }
 
+    // ── Taxe de la ville ──────────────────────────────────────────────────────
+
+    private static final String CITY_TAX = "Taxe ville";
+
+    /** Taxe due à la ville = part entreprise cumulée − déjà reversé (catégorie « Taxe ville »). */
+    @Transactional
+    public long cityTaxDue(User actor, UUID businessId) {
+        requireBusiness(businessId);
+        access.requireView(actor, businessId);
+        long share = round(validatedFactures(businessId).stream()
+                .map(Facture::getBusinessShare).reduce(BigDecimal.ZERO, BigDecimal::add));
+        long reversed = expenseRepo.findByBusinessIdOrderByCreatedAtDesc(businessId).stream()
+                .filter(e -> CITY_TAX.equals(e.getCategory())).mapToLong(Expense::getAmount).sum();
+        return Math.max(0, share - reversed);
+    }
+
+    /** Reverse la taxe de la ville : dépense historisée (septimes sortis du coffre). ADMIN. */
+    @Transactional
+    public ExpenseDto payCityTax(User actor, UUID businessId, long amount) {
+        return addExpense(actor, businessId, new CreateExpenseRequest("Taxe de la ville", amount, CITY_TAX));
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private List<Facture> validatedFactures(UUID businessId) {
