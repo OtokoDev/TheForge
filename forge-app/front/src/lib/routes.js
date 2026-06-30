@@ -1,6 +1,7 @@
 import Dashboard from '../pages/Dashboard.svelte'
 import Facturation from '../pages/Facturation.svelte'
 import Commandes from '../pages/Commandes.svelte'
+import Atelier from '../pages/Atelier.svelte'
 import Stock from '../pages/Stock.svelte'
 import Rachat from '../pages/Rachat.svelte'
 import MainCourante from '../pages/MainCourante.svelte'
@@ -18,6 +19,7 @@ export const routes = {
   '/dashboard': Dashboard,
   '/facturation': Facturation,
   '/commandes': Commandes,
+  '/atelier': Atelier,
   '/stock': Stock,
   '/rachat': Rachat,
   '/main-courante': MainCourante,
