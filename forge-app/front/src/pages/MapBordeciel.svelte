@@ -8,17 +8,7 @@
   import PageHeader from '../components/PageHeader.svelte'
   import staticMarkers from '../lib/data/markers.json'
 
-  const TYPES = {
-    cite: { label: 'Cité', color: '#E8590C' },
-    contree: { label: 'Contrée', color: '#7aa7ff' },
-    village: { label: 'Village', color: '#5BBF73' },
-    fort: { label: 'Fort', color: '#c9a227' },
-    donjon: { label: 'Donjon', color: '#b86bd9' },
-    camp: { label: 'Camp RP', color: '#ed8472' },
-    filon: { label: 'Filon / Mine', color: '#9a938c' },
-    chasse: { label: 'Zone de chasse', color: '#88c088' },
-  }
-
+  const NEUTRAL = '#9a938c'
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
   let canOperate = $derived($currentBusinessId ? canOperateBusiness($me, $currentBusinessId) : false)
 
@@ -26,29 +16,31 @@
   let map = null
   let L = null
   let maxZoom = 5
-  const layers = {}
+  let markersLayer = null
   let unsub = null
 
-  let active = $state(Object.fromEntries(Object.keys(TYPES).map((t) => [t, true])))
-  let points = $state([]) // POI dynamiques (backend, par compagnie)
-  let pending = $state(null) // { x, y } clic en attente d'ajout
-  let newType = $state('camp')
+  let markerTypes = $state([]) // [{ id, label, color, imageDataUrl }]
+  let points = $state([]) // POI dynamiques
+  let active = $state({}) // key -> false si masqué
+  let pending = $state(null) // { x, y } clic en attente
+  let newType = $state('')
   let newLabel = $state('')
   let newNote = $state('')
 
+  let typeById = $derived(new Map(markerTypes.map((t) => [t.id, t])))
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
+  const visible = (key) => active[key] !== false
 
   onMount(() => {
     if (isCompagnie) initMap()
-    unsub = onRealtime('MAP', loadPoints)
+    unsub = onRealtime('MAP', loadMap)
     return () => unsub?.()
   })
   onDestroy(() => map?.remove())
 
-  // Recharge les POI quand on change de business (compagnie → compagnie).
   $effect(() => {
     $currentBusinessId
-    if (map) loadPoints()
+    if (map) loadMap()
   })
 
   async function initMap() {
@@ -57,32 +49,37 @@
     const meta = await fetch('/map/meta.json').then((r) => r.json())
     maxZoom = meta.maxZoom
     map = L.map(mapEl, { crs: L.CRS.Simple, preferCanvas: true, minZoom: 0, maxZoom })
-    const sw = map.unproject([0, meta.height], maxZoom)
-    const ne = map.unproject([meta.width, 0], maxZoom)
-    const bounds = new L.LatLngBounds(sw, ne)
+    const bounds = new L.LatLngBounds(map.unproject([0, meta.height], maxZoom), map.unproject([meta.width, 0], maxZoom))
     L.tileLayer('/map/tiles/{z}/{x}/{y}.png', { tileSize: meta.tileSize, minZoom: 0, maxZoom, noWrap: true, bounds }).addTo(map)
     map.setMaxBounds(bounds)
     map.fitBounds(bounds)
     map.attributionControl.addAttribution('Carte © <a href="https://en.uesp.net/" target="_blank" rel="noopener">UESP</a> — CC-BY-SA 2.5')
-    for (const t of Object.keys(TYPES)) layers[t] = L.layerGroup().addTo(map)
+    markersLayer = L.layerGroup().addTo(map)
 
     map.on('click', (e) => {
       const p = map.project(e.latlng, maxZoom)
       const x = Math.round(p.x)
       const y = Math.round(p.y)
       console.log(`Coords carte : x=${x}, y=${y}`)
-      if (canOperate) pending = { x, y }
+      if (!canOperate) return
+      if (markerTypes.length === 0) return notifyError('Configure d’abord des types de marqueurs (Configuration → Marqueurs)')
+      pending = { x, y }
     })
 
-    renderAll()
-    loadPoints()
+    loadMap()
   }
 
-  async function loadPoints() {
+  async function loadMap() {
     const id = $currentBusinessId
     if (!id || !isCompagnie) return
     try {
-      points = await api(`/api/businesses/${id}/map-points`)
+      const [types, pts] = await Promise.all([
+        api(`/api/businesses/${id}/marker-types`),
+        api(`/api/businesses/${id}/map-points`),
+      ])
+      markerTypes = types
+      points = pts
+      if (!newType || !types.some((t) => t.id === newType)) newType = types[0]?.id ?? ''
       renderAll()
     } catch (e) {
       fail(e)
@@ -90,26 +87,26 @@
   }
 
   function renderAll() {
-    if (!map) return
-    for (const t of Object.keys(TYPES)) layers[t]?.clearLayers()
-    for (const m of staticMarkers) addMarker(m, false)
-    for (const p of points) addMarker(p, true)
+    if (!map || !markersLayer) return
+    markersLayer.clearLayers()
+    if (visible('_static')) for (const m of staticMarkers) addMarker(m, false, null)
+    for (const p of points) if (visible(p.type)) addMarker(p, true, typeById.get(p.type))
   }
 
-  function addMarker(m, dynamic) {
-    const type = TYPES[m.type] ? m.type : 'camp'
-    const cfg = TYPES[type]
+  function addMarker(m, dynamic, type) {
+    const color = type?.color ?? NEUTRAL
     const name = m.nom_fr ?? m.label
+    const img = dynamic ? type?.imageDataUrl : null
+    const off = img ? 13 : 7
+    const visual = img
+      ? `<img src="${img}" style="width:26px;height:26px;object-fit:contain;filter:drop-shadow(0 1px 3px #000);" />`
+      : `<span style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 5px rgba(0,0,0,.7);"></span>`
     const icon = L.divIcon({
       className: '',
       iconSize: [0, 0],
-      html: `<span style="display:flex;align-items:center;gap:5px;transform:translate(-8px,-8px);white-space:nowrap;">
-        <span style="width:14px;height:14px;border-radius:50%;background:${cfg.color};border:2px solid #fff;box-shadow:0 0 5px rgba(0,0,0,.7);"></span>
-        <span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px #000;">${name}</span></span>`,
+      html: `<span style="display:flex;align-items:center;gap:5px;transform:translate(-${off}px,-${off}px);white-space:nowrap;">${visual}<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px #000;">${name}</span></span>`,
     })
-    let html = `<strong>${name}</strong><br><span style="opacity:.65">${cfg.label}</span>` +
-      (m.note ? `<br>${m.note}` : '') +
-      (m.faction ? `<br><em>${m.faction}</em>` : '')
+    let html = `<strong>${name}</strong>` + (type ? `<br><span style="opacity:.65">${type.label}</span>` : '') + (m.note ? `<br>${m.note}` : '')
     if (dynamic && canOperate) html += `<br><button id="mapdel-${m.id}" style="margin-top:6px;color:#ed8472;background:none;border:none;cursor:pointer;padding:0;">Supprimer</button>`
     const mk = L.marker(map.unproject([m.x, m.y], maxZoom), { icon }).bindPopup(html)
     if (dynamic && canOperate) {
@@ -118,17 +115,16 @@
         if (b) b.onclick = () => del(m.id)
       })
     }
-    mk.addTo(layers[type])
+    mk.addTo(markersLayer)
   }
 
-  function toggle(t) {
-    active[t] = !active[t]
-    if (!map) return
-    if (active[t]) layers[t].addTo(map)
-    else layers[t].remove()
+  function toggle(key) {
+    active[key] = !visible(key)
+    renderAll()
   }
 
   async function addPoint() {
+    if (!newType) return notifyError('Choisis un type')
     if (!newLabel.trim()) return notifyError('Nom requis')
     try {
       await api(`/api/businesses/${$currentBusinessId}/map-points`, {
@@ -139,7 +135,7 @@
       pending = null
       newLabel = ''
       newNote = ''
-      loadPoints()
+      loadMap()
     } catch (e) {
       fail(e)
     }
@@ -148,7 +144,7 @@
     if (!confirm('Supprimer ce point ?')) return
     try {
       await api(`/api/businesses/${$currentBusinessId}/map-points/${id}`, { method: 'DELETE' })
-      loadPoints()
+      loadMap()
     } catch (e) {
       fail(e)
     }
@@ -163,14 +159,12 @@
   <p class="text-sm text-muted-foreground">La carte est réservée aux <strong>compagnies</strong>.</p>
 {:else}
   <div class="mb-3 flex flex-wrap gap-2">
-    {#each Object.entries(TYPES) as [t, cfg] (t)}
-      <button
-        onclick={() => toggle(t)}
-        class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition {active[t]
-          ? 'border-border bg-muted/60 text-foreground'
-          : 'border-border bg-transparent text-muted-foreground opacity-50'}"
-      >
-        <span class="size-2.5 rounded-full" style="background:{cfg.color};"></span>{cfg.label}
+    <button onclick={() => toggle('_static')} class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition {visible('_static') ? 'border-border bg-muted/60 text-foreground' : 'opacity-50'}">
+      <span class="size-2.5 rounded-full" style="background:{NEUTRAL};"></span>Repères
+    </button>
+    {#each markerTypes as t (t.id)}
+      <button onclick={() => toggle(t.id)} class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition {visible(t.id) ? 'border-border bg-muted/60 text-foreground' : 'opacity-50'}">
+        {#if t.imageDataUrl}<img src={t.imageDataUrl} alt="" class="size-4 rounded object-contain" />{:else}<span class="size-2.5 rounded-full" style="background:{t.color};"></span>{/if}{t.label}
       </button>
     {/each}
   </div>
@@ -183,7 +177,7 @@
         <div class="mb-2 text-sm font-semibold">Nouveau point <span class="text-xs font-normal text-muted-foreground">({pending.x}, {pending.y})</span></div>
         <div class="flex flex-col gap-2">
           <select bind:value={newType} class="rounded-md border bg-input/30 px-2 py-1.5 text-sm">
-            {#each Object.entries(TYPES) as [t, cfg] (t)}<option value={t}>{cfg.label}</option>{/each}
+            {#each markerTypes as t (t.id)}<option value={t.id}>{t.label}</option>{/each}
           </select>
           <input bind:value={newLabel} placeholder="Nom" aria-label="Nom" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
           <input bind:value={newNote} placeholder="Note (optionnel)" aria-label="Note" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
@@ -195,5 +189,14 @@
       </div>
     {/if}
   </div>
-  {#if canOperate}<p class="mt-2 text-xs text-muted-foreground">Clique sur la carte pour ajouter un point. Les points apparaissent en direct pour toute la compagnie.</p>{/if}
+
+  {#if canOperate}
+    <p class="mt-2 text-xs text-muted-foreground">
+      {#if markerTypes.length === 0}
+        Configure des types de marqueurs dans <strong>Configuration → Marqueurs</strong> pour pouvoir poser des points.
+      {:else}
+        Clique sur la carte pour ajouter un point. Mise à jour en direct pour toute la compagnie.
+      {/if}
+    </p>
+  {/if}
 {/if}

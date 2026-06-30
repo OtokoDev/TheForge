@@ -8,9 +8,11 @@
   import MembersSection from '../components/business/MembersSection.svelte'
   import DevSection from '../components/business/DevSection.svelte'
   import LogsSection from '../components/business/LogsSection.svelte'
+  import MapTypesSection from '../components/business/MapTypesSection.svelte'
 
   let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
   let isSystem = $derived($me.user.globalRole === 'SYSTEM')
+  let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
   let TABS = $derived([
     { separator: 'Atelier' },
     { key: 'coffres', label: 'Coffres' },
@@ -21,6 +23,7 @@
     { key: 'membres', label: 'Membres' },
     { separator: 'Activité' },
     { key: 'logs', label: 'Logs' },
+    ...(isCompagnie ? [{ separator: 'Carte' }, { key: 'carte', label: 'Marqueurs' }] : []),
     ...(isSystem ? [{ separator: 'Système' }, { key: 'systeme', label: 'Outils de test' }] : []),
   ])
   let tab = $state('coffres')
@@ -49,6 +52,8 @@
         <MembersSection businessId={$currentBusinessId} />
       {:else if tab === 'logs'}
         <LogsSection businessId={$currentBusinessId} />
+      {:else if tab === 'carte'}
+        <MapTypesSection businessId={$currentBusinessId} />
       {:else if tab === 'systeme'}
         <DevSection businessId={$currentBusinessId} />
       {/if}
