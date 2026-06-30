@@ -6,9 +6,11 @@ import com.bryan.forge.business.datamodel.Business;
 import com.bryan.forge.business.datamodel.BusinessType;
 import com.bryan.forge.business.datarepository.BusinessRepository;
 import com.bryan.forge.business.datarepository.MembershipRepository;
+import com.bryan.forge.business.event.BusinessCreatedEvent;
 import com.bryan.forge.core.datamodel.GlobalRole;
 import com.bryan.forge.core.datamodel.User;
 import com.bryan.forge.security.backend.CurrentActor;
+import io.micronaut.context.event.ApplicationEventPublisher;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 
@@ -25,13 +27,16 @@ public class BusinessService {
     private final MembershipRepository membershipRepo;
     private final BusinessAccessService access;
     private final CurrentActor currentActor;
+    private final ApplicationEventPublisher<Object> events;
 
     public BusinessService(BusinessRepository businessRepo, MembershipRepository membershipRepo,
-                           BusinessAccessService access, CurrentActor currentActor) {
+                           BusinessAccessService access, CurrentActor currentActor,
+                           ApplicationEventPublisher<Object> events) {
         this.businessRepo = businessRepo;
         this.membershipRepo = membershipRepo;
         this.access = access;
         this.currentActor = currentActor;
+        this.events = events;
     }
 
     @Transactional
@@ -40,7 +45,10 @@ public class BusinessService {
         UUID by = currentActor.stampId();
         business.setCreatedBy(by);
         business.setModifiedBy(by);
-        return BusinessDto.from(businessRepo.save(business));
+        Business saved = businessRepo.save(business);
+        // Init synchrone du coffre par défaut (forge-ledger), dans cette transaction.
+        events.publishEvent(new BusinessCreatedEvent(saved.getId()));
+        return BusinessDto.from(saved);
     }
 
     /**

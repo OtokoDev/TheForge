@@ -31,14 +31,8 @@
   async function createBusiness() {
     if (!nom.trim()) return
     try {
-      const biz = await api('/api/businesses', { method: 'POST', body: JSON.stringify({ nom: nom.trim(), type }) })
-      // Initialise un coffre principal (STOCK) défini par défaut → vente possible direct.
-      try {
-        const acc = await api(`/api/businesses/${biz.id}/accounts`, { method: 'POST', body: JSON.stringify({ name: 'Coffre principal', kind: 'STOCK' }) })
-        await api(`/api/businesses/${biz.id}/defaults`, { method: 'PUT', body: JSON.stringify({ stockAccountId: acc.id, coffreAccountId: acc.id }) })
-      } catch {
-        /* business créé quand même ; le coffre se configure à la main */
-      }
+      // Le back crée un « Coffre principal » (STOCK) par défaut, atomiquement.
+      await api('/api/businesses', { method: 'POST', body: JSON.stringify({ nom: nom.trim(), type }) })
       nom = ''
       showCreate = false
       notifySuccess('Business créé (coffre principal initialisé)')
