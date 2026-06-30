@@ -7,6 +7,7 @@
   import AccountsSection from '../components/business/AccountsSection.svelte'
   import MembersSection from '../components/business/MembersSection.svelte'
   import DevSection from '../components/business/DevSection.svelte'
+  import LogsSection from '../components/business/LogsSection.svelte'
 
   let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
   let isSystem = $derived($me.user.globalRole === 'SYSTEM')
@@ -18,6 +19,8 @@
     { key: 'logo', label: 'Logo' },
     { separator: 'Équipe' },
     { key: 'membres', label: 'Membres' },
+    { separator: 'Activité' },
+    { key: 'logs', label: 'Logs' },
     ...(isSystem ? [{ separator: 'Système' }, { key: 'systeme', label: 'Outils de test' }] : []),
   ])
   let tab = $state('coffres')
@@ -44,6 +47,8 @@
         <LogoSection businessId={$currentBusinessId} />
       {:else if tab === 'membres'}
         <MembersSection businessId={$currentBusinessId} />
+      {:else if tab === 'logs'}
+        <LogsSection businessId={$currentBusinessId} />
       {:else if tab === 'systeme'}
         <DevSection businessId={$currentBusinessId} />
       {/if}

@@ -5,7 +5,6 @@ import Atelier from '../pages/Atelier.svelte'
 import Stock from '../pages/Stock.svelte'
 import Achats from '../pages/Achats.svelte'
 import Rachat from '../pages/Rachat.svelte'
-import MainCourante from '../pages/MainCourante.svelte'
 import Statistiques from '../pages/Statistiques.svelte'
 import Finance from '../pages/Finance.svelte'
 import Catalogue from '../pages/Catalogue.svelte'
@@ -26,7 +25,6 @@ export const routes = {
   '/stock': Stock,
   '/achats': Achats,
   '/rachat': Rachat,
-  '/main-courante': MainCourante,
   '/statistiques': Statistiques,
   '/finance': Finance,
   '/catalogue': Catalogue,

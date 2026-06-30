@@ -1,7 +1,7 @@
 <script>
   import { router } from 'svelte-spa-router'
   import {
-    Gauge, FileText, ClipboardList, Anvil, Hammer, Truck, Coins, ScrollText, ChartLine,
+    Gauge, FileText, ClipboardList, Anvil, Hammer, Truck, Coins, ChartLine,
     Wallet, Package, Map, Settings, Globe, Boxes, User,
   } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
@@ -17,7 +17,6 @@
     { href: '/stock', label: 'Stock', icon: Hammer },
     { href: '/achats', label: 'Achats', icon: Truck },
     { href: '/rachat', label: 'Créances', icon: Coins },
-    { href: '/main-courante', label: 'Main courante', icon: ScrollText },
     { href: '/statistiques', label: 'Statistiques', icon: ChartLine },
     { href: '/finance', label: 'Finance', icon: Wallet },
     { href: '/catalogue', label: 'Catalogue', icon: Package },
