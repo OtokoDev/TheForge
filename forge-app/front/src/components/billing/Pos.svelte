@@ -1,11 +1,12 @@
 <script>
+  import { untrack } from 'svelte'
   import { ShoppingCart } from '@lucide/svelte'
   import { api, ApiError } from '../../lib/api.js'
   import { notifyError, notifySuccess } from '../../lib/notifications.js'
   import Fab from '../ui/Fab.svelte'
 
   let { businessId, canOperate, edit = null, onBack, onEmitted } = $props()
-  const editId = edit?.id ?? null
+  let editId = $derived(edit?.id ?? null)
 
   const ORANGE = '#E8590C', GREEN = '#5BBF73', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', INPUT_BG = '#15110e', BORDER = '1px solid rgba(255,255,255,0.07)', DEFAULT_CAT = '#7d90a6'
@@ -27,9 +28,9 @@
   let query = $state('')
   let fam = $state('all')
   let mat = $state('all')
-  let cart = $state(edit ? Object.fromEntries(edit.lines.map((l) => [l.itemId, l.quantity])) : {})
-  let client = $state(edit?.clientName ?? '')
-  let priceOverrides = $state(edit ? Object.fromEntries(edit.lines.map((l) => [l.itemId, l.unitPrice])) : {})
+  let cart = $state(untrack(() => (edit ? Object.fromEntries(edit.lines.map((l) => [l.itemId, l.quantity])) : {})))
+  let client = $state(untrack(() => edit?.clientName ?? ''))
+  let priceOverrides = $state(untrack(() => (edit ? Object.fromEntries(edit.lines.map((l) => [l.itemId, l.unitPrice])) : {})))
   let paid = $state(true)
 
   $effect(() => {

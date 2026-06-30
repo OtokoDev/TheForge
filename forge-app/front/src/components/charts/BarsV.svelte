@@ -5,7 +5,7 @@
   let W = $state(600)
   const PAD = { t: 10, r: 12, b: 28, l: 48 }
   let innerW = $derived(Math.max(0, W - PAD.l - PAD.r))
-  const innerH = height - PAD.t - PAD.b
+  let innerH = $derived(height - PAD.t - PAD.b)
   let max = $derived(Math.max(1, ...data.flatMap((d) => series.map((s) => Number(d[s.key]) || 0))))
   let groupW = $derived(data.length ? innerW / data.length : 0)
   let barW = $derived(series.length ? Math.max(2, (groupW * 0.7) / series.length) : 0)

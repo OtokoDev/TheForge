@@ -7,6 +7,7 @@
   import Input from '../ui/Input.svelte'
   import SelectField from '../ui/SelectField.svelte'
   import RecipeEditor from './RecipeEditor.svelte'
+  import { untrack } from 'svelte'
 
   let { item, items, families, materials, onChanged } = $props()
 
@@ -15,10 +16,10 @@
 
   let editing = $state(false)
   let openRecipe = $state(false)
-  let name = $state(item.name)
-  let familyId = $state(item.familyId ?? '')
-  let materialId = $state(item.materialId ?? '')
-  let hand = $state(item.handRequired ?? '')
+  let name = $state(untrack(() => item.name))
+  let familyId = $state(untrack(() => item.familyId ?? ''))
+  let materialId = $state(untrack(() => item.materialId ?? ''))
+  let hand = $state(untrack(() => item.handRequired ?? ''))
 
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
   const onErr = (e) => {

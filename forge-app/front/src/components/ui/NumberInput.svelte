@@ -25,7 +25,7 @@
   }
   const titleMinus = '−1 · Ctrl −0.1 · Shift −10 · Ctrl+Shift −100'
   const titlePlus = '+1 · Ctrl +0.1 · Shift +10 · Ctrl+Shift +100'
-  const dark = variant === 'dark'
+  let dark = $derived(variant === 'dark')
 </script>
 
 {#if dark}
