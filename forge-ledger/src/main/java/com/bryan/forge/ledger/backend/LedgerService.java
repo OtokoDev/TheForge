@@ -286,6 +286,38 @@ public class LedgerService {
     }
 
     /**
+     * Enregistre un lot de mouvements (ex. dépôt de plusieurs objets) atomiquement : une
+     * seule transaction, garde stock négatif par ligne → tout passe ou rien. Renvoie le nb.
+     */
+    @Transactional
+    public int recordBatch(User actor, UUID businessId, List<RecordMovementRequest> moves) {
+        requireBusiness(businessId);
+        access.requireOperate(actor, businessId);
+        if (moves == null || moves.isEmpty()) {
+            throw new IllegalArgumentException("Aucun mouvement à enregistrer");
+        }
+        for (RecordMovementRequest req : moves) {
+            if (req.quantity() <= 0) {
+                throw new IllegalArgumentException("La quantité doit être positive");
+            }
+            if (req.type() == null) {
+                throw new IllegalArgumentException("Le type de mouvement est obligatoire");
+            }
+            if (req.fromAccountId() == null && req.toAccountId() == null) {
+                throw new IllegalArgumentException("Au moins un compte (source ou destination) est requis");
+            }
+            itemRepo.findById(req.itemId())
+                    .orElseThrow(() -> new NoSuchElementException("Item introuvable : " + req.itemId()));
+            if (req.fromAccountId() != null) requireAccount(req.fromAccountId(), businessId);
+            if (req.toAccountId() != null) requireAccount(req.toAccountId(), businessId);
+            String note = req.note() == null || req.note().isBlank() ? null : req.note().trim();
+            applyMovement(businessId, req.itemId(), req.quantity(), req.fromAccountId(), req.toAccountId(),
+                    req.type(), "MANUAL", null, note, actor.getId());
+        }
+        return moves.size();
+    }
+
+    /**
      * Enregistre un mouvement SANS contrôle d'autorisation (l'appelant l'a déjà fait),
      * avec garde stock négatif sur le compte source. Pour usage interne (factures…).
      */

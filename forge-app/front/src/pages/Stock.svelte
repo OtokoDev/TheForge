@@ -17,6 +17,7 @@
   const thStyle = `color:${MUTED}; font-weight:600; font-size:12px; letter-spacing:.03em; padding:13px 16px; cursor:pointer; border-bottom:${BORDER}; white-space:nowrap;`
   const tdNum = `padding:11px 16px; text-align:right; color:${TEXT}; font-variant-numeric:tabular-nums;`
   const quickBtn = 'flex:1; background:#232120; border:1px solid rgba(255,255,255,0.08); border-radius:7px; color:#9a938c; font-size:12.5px; padding:6px; cursor:pointer;'
+  const stepBtn = 'width:26px; height:26px; background:#232120; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:#cfc8c2; font-size:15px; cursor:pointer; flex:none;'
   const pickerStyle = `width:100%; background:${INPUT_BG}; border:1px solid rgba(255,255,255,0.12); border-radius:9px; color:${TEXT}; font-size:14px; font-weight:600; padding:11px 13px; outline:none; cursor:pointer;`
   const chipStyle = (active) =>
     `display:flex; align-items:center; gap:7px; background:${active ? 'rgba(232,89,12,0.15)' : 'rgba(255,255,255,0.05)'}; color:${active ? '#f5a06a' : '#cfc8c2'}; border:none; border-radius:999px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer;`
@@ -44,6 +45,12 @@
   let transferTo = $state('')
   let formItem = $state('')
   let formAccount = $state('')
+
+  // Panier de dépôt — déposer plusieurs objets en une fois (POST /movements/batch).
+  let depositOpen = $state(false)
+  let depositAccount = $state('')
+  let depositCart = $state({})
+  let depositQuery = $state('')
 
   function distinct(rows, idKey, nameKey) {
     const m = new Map()
@@ -130,12 +137,6 @@
     sel = { itemId: r.itemId, accountId: r.accountId }
     mode = 'DEPOSIT'; qty = ''; motif = ''; transferTo = ''
   }
-  function openNewDeposit() {
-    sel = { itemId: '', accountId: '' }
-    formItem = items[0]?.id ?? ''
-    formAccount = accounts[0]?.id ?? ''
-    mode = 'DEPOSIT'; qty = ''; motif = ''
-  }
   function setCount(key, v) {
     counted = { ...counted, [key]: v }
   }
@@ -159,6 +160,50 @@
       })
       notifySuccess('Mouvement enregistré')
       qty = ''; motif = ''
+      loadStock()
+    } catch (e) {
+      fail(e)
+    }
+  }
+
+  let depositLines = $derived(Object.entries(depositCart).map(([id, qty]) => ({ id, name: itemById.get(id)?.name ?? '?', qty })))
+  let depositTotal = $derived(depositLines.reduce((s, l) => s + l.qty, 0))
+  let depositCatalog = $derived.by(() => {
+    const q = depositQuery.trim().toLowerCase()
+    return items.filter((i) => !i.system && (q === '' || i.name.toLowerCase().includes(q))).slice(0, 40)
+  })
+
+  function openDepositCart() {
+    depositOpen = true
+    depositAccount = accounts[0]?.id ?? ''
+    depositCart = {}
+    depositQuery = ''
+  }
+  function addToDeposit(id) {
+    depositCart = { ...depositCart, [id]: (depositCart[id] ?? 0) + 1 }
+  }
+  function decDeposit(id) {
+    const n = { ...depositCart }
+    n[id] = (n[id] ?? 0) - 1
+    if (n[id] <= 0) delete n[id]
+    depositCart = n
+  }
+  function setDepositQty(id, v) {
+    const q = Math.max(0, Math.floor(Number(v) || 0))
+    const n = { ...depositCart }
+    if (q <= 0) delete n[id]
+    else n[id] = q
+    depositCart = n
+  }
+  async function submitDeposit() {
+    if (!$currentBusinessId) return
+    if (!depositAccount) return notifyError('Choisis le coffre destination')
+    if (depositLines.length === 0) return notifyError('Ajoute au moins un objet')
+    const moves = depositLines.map((l) => ({ itemId: l.id, quantity: l.qty, fromAccountId: null, toAccountId: depositAccount, type: 'DEPOSIT', note: null }))
+    try {
+      const res = await api(`/api/businesses/${$currentBusinessId}/movements/batch`, { method: 'POST', body: JSON.stringify({ moves }) })
+      notifySuccess(`${res.count} dépôt(s) enregistré(s)`)
+      depositOpen = false
       loadStock()
     } catch (e) {
       fail(e)
@@ -221,7 +266,7 @@
           </button>
         {/if}
         {#if canOperate && !inventory}
-          <button onclick={openNewDeposit} style="display:flex; align-items:center; gap:8px; background:{ORANGE}; border:none; color:#fff; font-size:13.5px; font-weight:700; padding:10px 17px; border-radius:9px; cursor:pointer; box-shadow:0 4px 14px rgba(232,89,12,0.32);">+ Déposer</button>
+          <button onclick={openDepositCart} style="display:flex; align-items:center; gap:8px; background:{ORANGE}; border:none; color:#fff; font-size:13.5px; font-weight:700; padding:10px 17px; border-radius:9px; cursor:pointer; box-shadow:0 4px 14px rgba(232,89,12,0.32);">+ Déposer</button>
         {/if}
       </div>
     </div>
@@ -377,8 +422,56 @@
       </div>
     {/if}
 
+    {#if depositOpen}
+      <div style="position:fixed; inset:0; z-index:50;">
+        <div role="presentation" onclick={() => (depositOpen = false)} style="position:absolute; inset:0; background:rgba(0,0,0,0.5);"></div>
+        <aside style="position:fixed; top:0; right:0; bottom:0; width:min(440px,100vw); background:#1a1613; border-left:1px solid rgba(255,255,255,0.1); box-shadow:-26px 0 55px rgba(0,0,0,0.42); display:flex; flex-direction:column; z-index:51;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:{BORDER};">
+            <div style="color:{TEXT}; font-size:16px; font-weight:700;">Déposer des objets</div>
+            <button onclick={() => (depositOpen = false)} aria-label="Fermer" style="background:transparent; border:none; color:{MUTED}; font-size:22px; cursor:pointer; line-height:1;">×</button>
+          </div>
+          <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px; overflow:auto; flex:1;">
+            <div>
+              <div style="color:{MUTED}; font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Coffre destination</div>
+              <select bind:value={depositAccount} aria-label="Coffre destination" style={pickerStyle}>
+                {#each accounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
+              </select>
+            </div>
+            <input bind:value={depositQuery} placeholder="Chercher un objet à ajouter…" aria-label="Chercher un objet" style="width:100%; background:{INPUT_BG}; border:1px solid rgba(255,255,255,0.12); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:9px 12px; outline:none;" />
+            {#if depositQuery.trim()}
+              <div style="display:flex; flex-direction:column; gap:4px; max-height:160px; overflow:auto;">
+                {#each depositCatalog as it (it.id)}
+                  <button onclick={() => addToDeposit(it.id)} style="display:flex; align-items:center; justify-content:space-between; background:{CARD}; border:{BORDER}; border-radius:8px; padding:8px 11px; color:{TEXT}; font-size:13px; cursor:pointer; text-align:left;">
+                    <span>{it.name}</span><span style="color:{ORANGE}; font-weight:600;">+ ajouter</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            <div style="border-top:{BORDER}; padding-top:10px; display:flex; flex-direction:column; gap:8px;">
+              {#if depositLines.length === 0}
+                <div style="color:#6f6862; font-size:13px; text-align:center; padding:18px 0;">Aucun objet — cherche et ajoute ci-dessus.</div>
+              {:else}
+                {#each depositLines as l (l.id)}
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="flex:1; min-width:0; color:{TEXT}; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{l.name}</span>
+                    <button onclick={() => decDeposit(l.id)} style={stepBtn}>−</button>
+                    <input type="number" min="1" step="1" value={l.qty} onchange={(e) => setDepositQty(l.id, e.currentTarget.value)} aria-label="Quantité" style="width:54px; text-align:center; background:{INPUT_BG}; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:{TEXT}; font-size:13px; padding:4px; outline:none;" />
+                    <button onclick={() => addToDeposit(l.id)} style={stepBtn}>+</button>
+                  </div>
+                {/each}
+              {/if}
+            </div>
+          </div>
+          <div style="border-top:{BORDER}; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <span style="color:{MUTED}; font-size:13px;">{depositTotal} objet(s)</span>
+            <button onclick={submitDeposit} disabled={depositLines.length === 0} style="background:{ORANGE}; border:none; color:#fff; font-size:14px; font-weight:700; padding:11px 18px; border-radius:9px; cursor:{depositLines.length === 0 ? 'not-allowed' : 'pointer'}; opacity:{depositLines.length === 0 ? 0.5 : 1};">Déposer tout</button>
+          </div>
+        </aside>
+      </div>
+    {/if}
+
     {#if canOperate && !inventory}
-      <Fab label="Déposer un objet" onclick={openNewDeposit} />
+      <Fab label="Déposer des objets" onclick={openDepositCart} />
     {/if}
   </div>
 {/if}

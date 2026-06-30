@@ -2,6 +2,7 @@ package com.bryan.forge.ledger.backend;
 
 import com.bryan.forge.business.backend.CurrentUser;
 import com.bryan.forge.ledger.backend.dto.AccountDto;
+import com.bryan.forge.ledger.backend.dto.BatchMovementRequest;
 import com.bryan.forge.ledger.backend.dto.CreateAccountRequest;
 import com.bryan.forge.ledger.backend.dto.DefaultsDto;
 import com.bryan.forge.ledger.backend.dto.SetDefaultsRequest;
@@ -100,6 +101,13 @@ public class LedgerController {
     @Status(HttpStatus.CREATED)
     public MovementDto record(UUID businessId, @Body RecordMovementRequest req) {
         return ledger.record(currentUser.require(), businessId, req);
+    }
+
+    /** Lot de mouvements (ex. dépôt de plusieurs objets) — atomique. */
+    @Post("/movements/batch")
+    @Status(HttpStatus.CREATED)
+    public Map<String, Integer> recordBatch(UUID businessId, @Body BatchMovementRequest req) {
+        return Map.of("count", ledger.recordBatch(currentUser.require(), businessId, req.moves()));
     }
 
     /** DEV/SYSTEM : remplit le stock par défaut de 100 de chaque produit (tests). */

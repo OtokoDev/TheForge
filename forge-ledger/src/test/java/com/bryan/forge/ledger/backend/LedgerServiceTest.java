@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -116,5 +117,29 @@ class LedgerServiceTest {
 
         assertThat(dto.quantity()).isEqualTo(4);
         verify(movementRepo).save(any(Movement.class));
+    }
+
+    @Test
+    void recordBatch_enregistreChaqueDepot() {
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+        when(accountRepo.findById(acc)).thenReturn(Optional.of(new Account(biz, "Coffre", AccountKind.STOCK)));
+        when(itemRepo.findById(any())).thenReturn(Optional.of(mock(Item.class)));
+        when(movementRepo.save(any(Movement.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        int n = service.recordBatch(actor, biz, List.of(
+                new RecordMovementRequest(itemId, 100, null, acc, MovementType.DEPOSIT, null),
+                new RecordMovementRequest(UUID.randomUUID(), 50, null, acc, MovementType.DEPOSIT, null)));
+
+        assertThat(n).isEqualTo(2);
+        verify(movementRepo, times(2)).save(any(Movement.class));
+    }
+
+    @Test
+    void recordBatch_refuseQuantiteInvalide() {
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+
+        assertThatThrownBy(() -> service.recordBatch(actor, biz, List.of(
+                new RecordMovementRequest(itemId, 0, null, acc, MovementType.DEPOSIT, null))))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
