@@ -1,0 +1,7 @@
+[
+  { "id": "solitude", "nom_fr": "Solitude", "type": "cite", "x": 2000, "y": 1000, "description": "Capitale de Haafingar. (coords PLACEHOLDER — à caler, cf. README)" },
+  { "id": "blancherive", "nom_fr": "Blancherive", "type": "cite", "x": 4096, "y": 2900, "description": "Capitale de Blancherive. (coords PLACEHOLDER — à caler)" },
+  { "id": "rivebois", "nom_fr": "Rivebois", "type": "village", "x": 4300, "y": 3300, "description": "Village proche de Blancherive. (coords PLACEHOLDER — à caler)" },
+  { "id": "filon-fer-exemple", "nom_fr": "Filon de fer (exemple)", "type": "filon", "x": 3200, "y": 2400, "description": "Exemple de filon. (coords PLACEHOLDER — à caler)" },
+  { "id": "chasse-toundra-exemple", "nom_fr": "Toundra de chasse (exemple)", "type": "chasse", "x": 5200, "y": 3600, "description": "Exemple de zone de chasse. (coords PLACEHOLDER — à caler)", "faction": "Compagnons" }
+]

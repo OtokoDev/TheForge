@@ -9,6 +9,7 @@ import MainCourante from '../pages/MainCourante.svelte'
 import Statistiques from '../pages/Statistiques.svelte'
 import Finance from '../pages/Finance.svelte'
 import Catalogue from '../pages/Catalogue.svelte'
+import MapBordeciel from '../pages/MapBordeciel.svelte'
 import Configuration from '../pages/Configuration.svelte'
 import Staff from '../pages/Staff.svelte'
 import Systeme from '../pages/Systeme.svelte'
@@ -29,6 +30,7 @@ export const routes = {
   '/statistiques': Statistiques,
   '/finance': Finance,
   '/catalogue': Catalogue,
+  '/carte': MapBordeciel,
   '/configuration': Configuration,
   '/staff': Staff,
   '/systeme': Systeme,

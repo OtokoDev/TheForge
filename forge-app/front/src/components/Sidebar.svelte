@@ -2,7 +2,7 @@
   import { router } from 'svelte-spa-router'
   import {
     Gauge, FileText, ClipboardList, Anvil, Hammer, Truck, Coins, ScrollText, ChartLine,
-    Wallet, Package, Settings, Globe, Boxes, User,
+    Wallet, Package, Map, Settings, Globe, Boxes, User,
   } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { canAdminBusiness, canStaffView } from '../lib/roles.js'
@@ -21,6 +21,7 @@
     { href: '/statistiques', label: 'Statistiques', icon: ChartLine },
     { href: '/finance', label: 'Finance', icon: Wallet },
     { href: '/catalogue', label: 'Catalogue', icon: Package },
+    { href: '/carte', label: 'Carte', icon: Map },
   ]
 
   let isSystem = $derived($me.user.globalRole === 'SYSTEM')

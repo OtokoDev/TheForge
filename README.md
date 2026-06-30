@@ -104,3 +104,29 @@ Variables d'environnement (cf. `deploy/env.example`) :
 
 CI/CD GitHub Actions → image Docker Hub → SSH VPS → `docker compose up -d`. Détails et fichiers
 dans **[deployment.md](deployment.md)** (`Dockerfile`, `docker-compose.yaml`, Caddy, secrets).
+
+## Carte de Bordeciel (minimap)
+
+Carte interactive Leaflet (page `/carte`), tuiles XYZ servies en statique (`CRS.Simple`, pixels).
+Fond = carte UESP (**CC-BY-SA 2.5**, crédit affiché en bas de carte ; usage fan non commercial).
+Les libellés allemands d'origine sont **vectorisés** → masqués au build ; les toponymes FR sont
+une surcouche data-driven.
+
+### Régénérer les tuiles
+
+```bash
+npm --prefix forge-app/front run build:map
+```
+
+Pipeline reproductible : `map-src/skyrim_de.svg` → masque `<g id="Text">` → PNG 8192 px (resvg-js)
+→ tuiles 256 px (sharp) dans `public/map/tiles/` + `public/map/meta.json`. Réédite le SVG puis
+relance `build:map`.
+
+### Marqueurs RP
+
+`src/lib/data/markers.json` — schéma `{ id, nom_fr, type, x, y, description, faction? }`.
+`type` ∈ `cite, contree, village, fort, donjon, camp, filon, chasse`. `x`/`y` = **pixels natifs**
+(0..8192 × 0..5795). Les exemples fournis ont des coordonnées **placeholder à caler**.
+
+**Relever des coordonnées** : ouvre `/carte`, clique sur la carte → la console affiche `x=… y=…`.
+Reporte-les dans `markers.json`.
