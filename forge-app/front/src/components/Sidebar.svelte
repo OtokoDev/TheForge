@@ -30,7 +30,7 @@
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
 
   let primary = $derived([
-    ...primaryBase.filter((it) => it.href !== '/rachat' || isCompagnie),
+    ...primaryBase.filter((it) => (it.href !== '/rachat' && it.href !== '/carte') || isCompagnie),
     ...(canConfig ? [{ href: '/configuration', label: 'Configuration', icon: Settings }] : []),
   ])
   let secondary = $derived([
