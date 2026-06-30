@@ -48,5 +48,6 @@ public class Payout {
     public UUID getForgeronUserId() { return forgeronUserId; }
     public long getAmount()         { return amount; }
     public String getNote()         { return note; }
+    public UUID getCreatedBy()      { return createdBy; }
     public Instant getCreatedAt()   { return createdAt; }
 }

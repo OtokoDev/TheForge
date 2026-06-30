@@ -48,5 +48,6 @@ public class Purchase {
     public long getNumero()       { return numero; }
     public String getSupplierName() { return supplierName; }
     public long getTotal()        { return total; }
+    public UUID getCreatedBy()    { return createdBy; }
     public Instant getCreatedAt() { return createdAt; }
 }

@@ -58,4 +58,5 @@ public class MapPoint {
     public int getX()           { return x; }
     public int getY()           { return y; }
     public String getNote()     { return note; }
+    public UUID getCreatedBy()  { return createdBy; }
 }

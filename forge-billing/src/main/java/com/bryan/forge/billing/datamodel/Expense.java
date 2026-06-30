@@ -48,5 +48,6 @@ public class Expense {
     public String getLabel()      { return label; }
     public long getAmount()       { return amount; }
     public String getCategory()   { return category; }
+    public UUID getCreatedBy()    { return createdBy; }
     public Instant getCreatedAt() { return createdAt; }
 }
