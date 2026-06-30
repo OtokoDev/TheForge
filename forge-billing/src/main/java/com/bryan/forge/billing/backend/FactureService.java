@@ -25,8 +25,6 @@ import com.bryan.forge.ledger.backend.LedgerService;
 import com.bryan.forge.ledger.datamodel.Account;
 import com.bryan.forge.ledger.datamodel.MovementType;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
-import com.bryan.forge.valuation.datamodel.Product;
-import com.bryan.forge.valuation.datarepository.ProductRepository;
 import io.micronaut.context.event.ApplicationEventPublisher;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
@@ -48,7 +46,7 @@ public class FactureService {
     private final SessionRepository sessionRepo;
     private final ItemRepository itemRepo;
     private final RecipeComponentRepository recipeRepo;
-    private final ProductRepository productRepo;
+    private final PricingService pricing;
     private final CostingService costingService;
     private final TaxRateService taxRateService;
     private final LedgerService ledgerService;
@@ -58,7 +56,7 @@ public class FactureService {
     private final ApplicationEventPublisher<Object> events;
 
     public FactureService(FactureRepository factureRepo, FactureLineRepository lineRepo, SessionRepository sessionRepo,
-                          ItemRepository itemRepo, RecipeComponentRepository recipeRepo, ProductRepository productRepo,
+                          ItemRepository itemRepo, RecipeComponentRepository recipeRepo, PricingService pricing,
                           CostingService costingService, TaxRateService taxRateService, LedgerService ledgerService,
                           AccountRepository accountRepo, BusinessRepository businessRepo, BusinessAccessService access,
                           ApplicationEventPublisher<Object> events) {
@@ -67,7 +65,7 @@ public class FactureService {
         this.sessionRepo = sessionRepo;
         this.itemRepo = itemRepo;
         this.recipeRepo = recipeRepo;
-        this.productRepo = productRepo;
+        this.pricing = pricing;
         this.costingService = costingService;
         this.taxRateService = taxRateService;
         this.ledgerService = ledgerService;
@@ -118,10 +116,7 @@ public class FactureService {
             itemRepo.findById(line.itemId())
                     .orElseThrow(() -> new NoSuchElementException("Item introuvable : " + line.itemId()));
             // Prix négocié surchargé, sinon valeur catalogue courante.
-            BigDecimal price = line.unitPrice() != null && line.unitPrice().signum() >= 0
-                    ? line.unitPrice()
-                    : productRepo.findByBusinessIdAndItemIdAndValidToIsNull(businessId, line.itemId())
-                            .map(Product::getPrixRevente).filter(java.util.Objects::nonNull).orElse(BigDecimal.ZERO);
+            BigDecimal price = pricing.resolveUnitPrice(businessId, line.itemId(), line.unitPrice());
             lineRepo.save(new FactureLine(saved.getId(), line.itemId(), line.quantity(), price));
         }
         return toDto(saved, lineRepo.findByFactureId(saved.getId()), itemNames());
@@ -190,10 +185,7 @@ public class FactureService {
             }
             itemRepo.findById(line.itemId())
                     .orElseThrow(() -> new NoSuchElementException("Item introuvable : " + line.itemId()));
-            BigDecimal price = line.unitPrice() != null && line.unitPrice().signum() >= 0
-                    ? line.unitPrice()
-                    : productRepo.findByBusinessIdAndItemIdAndValidToIsNull(businessId, line.itemId())
-                            .map(Product::getPrixRevente).filter(java.util.Objects::nonNull).orElse(BigDecimal.ZERO);
+            BigDecimal price = pricing.resolveUnitPrice(businessId, line.itemId(), line.unitPrice());
             lineRepo.save(new FactureLine(factureId, line.itemId(), line.quantity(), price));
         }
         return toDto(facture, lineRepo.findByFactureId(factureId), itemNames());

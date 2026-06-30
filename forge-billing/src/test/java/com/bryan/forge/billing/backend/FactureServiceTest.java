@@ -22,7 +22,6 @@ import com.bryan.forge.ledger.datamodel.Account;
 import com.bryan.forge.ledger.datamodel.AccountKind;
 import com.bryan.forge.ledger.datamodel.MovementType;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
-import com.bryan.forge.valuation.datarepository.ProductRepository;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -49,7 +48,7 @@ class FactureServiceTest {
     private final SessionRepository sessionRepo = mock(SessionRepository.class);
     private final ItemRepository itemRepo = mock(ItemRepository.class);
     private final RecipeComponentRepository recipeRepo = mock(RecipeComponentRepository.class);
-    private final ProductRepository productRepo = mock(ProductRepository.class);
+    private final PricingService pricing = mock(PricingService.class);
     private final CostingService costingService = mock(CostingService.class);
     private final TaxRateService taxRateService = mock(TaxRateService.class);
     private final LedgerService ledgerService = mock(LedgerService.class);
@@ -60,7 +59,7 @@ class FactureServiceTest {
     private final io.micronaut.context.event.ApplicationEventPublisher<Object> events =
             mock(io.micronaut.context.event.ApplicationEventPublisher.class);
     private final FactureService service = new FactureService(factureRepo, lineRepo, sessionRepo, itemRepo,
-            recipeRepo, productRepo, costingService, taxRateService, ledgerService, accountRepo, businessRepo, access, events);
+            recipeRepo, pricing, costingService, taxRateService, ledgerService, accountRepo, businessRepo, access, events);
 
     private final com.bryan.forge.core.datamodel.User actor = mock(com.bryan.forge.core.datamodel.User.class);
     private final UUID biz = UUID.randomUUID();
@@ -171,7 +170,7 @@ class FactureServiceTest {
         when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
         when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
         when(itemRepo.findById(itemX)).thenReturn(Optional.of(mock(Item.class)));
-        when(productRepo.findByBusinessIdAndItemIdAndValidToIsNull(biz, itemX)).thenReturn(Optional.empty());
+        when(pricing.resolveUnitPrice(any(), any(), any())).thenReturn(BigDecimal.ZERO);
         when(lineRepo.findByFactureId(fid)).thenReturn(List.of());
         when(itemRepo.findAll()).thenReturn(List.of());
 

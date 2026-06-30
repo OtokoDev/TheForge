@@ -16,7 +16,6 @@ import com.bryan.forge.business.datarepository.BusinessRepository;
 import com.bryan.forge.catalog.datamodel.Item;
 import com.bryan.forge.catalog.datarepository.ItemRepository;
 import com.bryan.forge.core.datamodel.User;
-import com.bryan.forge.valuation.datarepository.ProductRepository;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -37,12 +36,12 @@ class CommandeServiceTest {
     private final CommandeRepository commandeRepo = mock(CommandeRepository.class);
     private final CommandeLineRepository lineRepo = mock(CommandeLineRepository.class);
     private final ItemRepository itemRepo = mock(ItemRepository.class);
-    private final ProductRepository productRepo = mock(ProductRepository.class);
+    private final PricingService pricing = mock(PricingService.class);
     private final BusinessRepository businessRepo = mock(BusinessRepository.class);
     private final BusinessAccessService access = mock(BusinessAccessService.class);
     private final FactureService factureService = mock(FactureService.class);
     private final CommandeService service = new CommandeService(commandeRepo, lineRepo, itemRepo,
-            productRepo, businessRepo, access, factureService);
+            pricing, businessRepo, access, factureService);
 
     private final User actor = mock(User.class);
     private final UUID biz = UUID.randomUUID();
@@ -56,7 +55,7 @@ class CommandeServiceTest {
         when(commandeRepo.nextNumero()).thenReturn(1L);
         when(commandeRepo.save(any(Commande.class))).thenAnswer(inv -> inv.getArgument(0));
         when(itemRepo.findById(itemX)).thenReturn(Optional.of(mock(Item.class)));
-        when(productRepo.findByBusinessIdAndItemIdAndValidToIsNull(biz, itemX)).thenReturn(Optional.empty());
+        when(pricing.resolveUnitPrice(any(), any(), any())).thenReturn(new BigDecimal("50"));
         when(lineRepo.findByCommandeId(any())).thenReturn(List.of());
         when(itemRepo.findAll()).thenReturn(List.of());
 

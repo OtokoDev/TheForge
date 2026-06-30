@@ -17,8 +17,6 @@ import com.bryan.forge.catalog.datamodel.Item;
 import com.bryan.forge.catalog.datarepository.ItemRepository;
 import com.bryan.forge.core.backend.ForbiddenException;
 import com.bryan.forge.core.datamodel.User;
-import com.bryan.forge.valuation.datamodel.Product;
-import com.bryan.forge.valuation.datarepository.ProductRepository;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 
@@ -27,7 +25,6 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -41,19 +38,19 @@ public class CommandeService {
     private final CommandeRepository commandeRepo;
     private final CommandeLineRepository lineRepo;
     private final ItemRepository itemRepo;
-    private final ProductRepository productRepo;
+    private final PricingService pricing;
     private final BusinessRepository businessRepo;
     private final BusinessAccessService access;
     private final FactureService factureService;
 
     public CommandeService(CommandeRepository commandeRepo, CommandeLineRepository lineRepo,
-                           ItemRepository itemRepo, ProductRepository productRepo,
+                           ItemRepository itemRepo, PricingService pricing,
                            BusinessRepository businessRepo, BusinessAccessService access,
                            FactureService factureService) {
         this.commandeRepo = commandeRepo;
         this.lineRepo = lineRepo;
         this.itemRepo = itemRepo;
-        this.productRepo = productRepo;
+        this.pricing = pricing;
         this.businessRepo = businessRepo;
         this.access = access;
         this.factureService = factureService;
@@ -169,10 +166,7 @@ public class CommandeService {
             }
             itemRepo.findById(line.itemId())
                     .orElseThrow(() -> new NoSuchElementException("Item introuvable : " + line.itemId()));
-            BigDecimal price = line.unitPrice() != null && line.unitPrice().signum() >= 0
-                    ? line.unitPrice()
-                    : productRepo.findByBusinessIdAndItemIdAndValidToIsNull(businessId, line.itemId())
-                            .map(Product::getPrixRevente).filter(Objects::nonNull).orElse(BigDecimal.ZERO);
+            BigDecimal price = pricing.resolveUnitPrice(businessId, line.itemId(), line.unitPrice());
             lineRepo.save(new CommandeLine(commandeId, line.itemId(), line.quantity(), price));
         }
     }
