@@ -175,7 +175,7 @@
         const weight = cap ? 800 : 700
         const spacing = cap ? 7 : 2
         const txt = cap ? p.nom.toUpperCase() : p.nom
-        return `<text x="${p.x}" y="${p.y}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="${size}" font-weight="${weight}" letter-spacing="${spacing}" fill="#f8edd0" stroke="#000000" stroke-width="${cap ? 11 : 8}" style="paint-order:stroke">${txt}</text>`
+        return `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central" font-family="Georgia, 'Times New Roman', serif" font-size="${size}" font-weight="${weight}" letter-spacing="${spacing}" fill="#f8edd0" stroke="#000000" stroke-width="${cap ? 11 : 8}" style="paint-order:stroke">${txt}</text>`
       })
       .join('')
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mapW} ${mapH}">${t}</svg>`
