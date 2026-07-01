@@ -305,7 +305,8 @@ public class FactureService {
         }
 
         events.publishEvent(new FactureValidatedEvent(actor.getDisplayName(), actor.isWebhooksEnabled(),
-                facture.getNumero(), totalAmount, totalCost, totalProfit, businessShare, workerShare));
+                business.getWebhookUrl(), facture.getNumero(), totalAmount, totalCost, totalProfit,
+                businessShare, workerShare));
 
         return toDto(facture, lines, itemNames());
     }

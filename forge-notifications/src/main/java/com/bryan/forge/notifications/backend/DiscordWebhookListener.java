@@ -41,11 +41,16 @@ public class DiscordWebhookListener {
         this.webhooks = webhooks;
     }
 
+    /** URL du business si configurée, sinon fallback global (env). */
+    private static String resolve(String businessUrl, String fallback) {
+        return businessUrl != null && !businessUrl.isBlank() ? businessUrl : fallback;
+    }
+
     @EventListener
     @Async
     void onShiftOpened(ShiftOpenedEvent e) {
         if (!e.actorWebhooksEnabled()) return;
-        webhooks.send(shopUrl, "SHIFT_OPEN", embed("Prise de service", GREEN, List.of(
+        webhooks.send(resolve(e.webhookUrl(), shopUrl), "SHIFT_OPEN", embed("Prise de service", GREEN, List.of(
                 field("Forgeron", e.actorUsername()),
                 field("Business", e.businessName()),
                 field("Heure", HOUR.format(e.openedAt())))));
@@ -60,7 +65,7 @@ public class DiscordWebhookListener {
         long cost = round(e.totalCost());
         long profit = e.totalAmount() - cost;
         long business = round(e.businessShare());
-        webhooks.send(ordersUrl, "FACTURE", embed("Facture #" + pad(e.numero()) + " validée", GREEN, List.of(
+        webhooks.send(resolve(e.webhookUrl(), ordersUrl), "FACTURE", embed("Facture #" + pad(e.numero()) + " validée", GREEN, List.of(
                 field("Forgeron", e.actorUsername()),
                 field("Total", money(e.totalAmount())),
                 field("Coût de revient", money(cost)),
@@ -75,7 +80,7 @@ public class DiscordWebhookListener {
         if (!e.actorWebhooksEnabled()) return;
         long profit = round(e.totalProfit());
         long business = round(e.businessShare());
-        webhooks.send(shopUrl, "SHIFT_CLOSE", embed("Fin de service", RED, List.of(
+        webhooks.send(resolve(e.webhookUrl(), shopUrl), "SHIFT_CLOSE", embed("Fin de service", RED, List.of(
                 field("Forgeron", e.actorUsername()),
                 field("Durée", duration(e.openedAt(), e.closedAt())),
                 field("Factures", String.valueOf(e.ordersCount())),

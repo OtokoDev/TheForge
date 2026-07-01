@@ -9,6 +9,7 @@
   import DevSection from '../components/business/DevSection.svelte'
   import LogsSection from '../components/business/LogsSection.svelte'
   import MapTypesSection from '../components/business/MapTypesSection.svelte'
+  import WebhookSection from '../components/business/WebhookSection.svelte'
   import Catalogue from './Catalogue.svelte'
 
   let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
@@ -25,6 +26,7 @@
     { key: 'membres', label: 'Membres' },
     { separator: 'Activité' },
     { key: 'logs', label: 'Logs' },
+    { key: 'webhook', label: 'Webhook Discord' },
     ...(isCompagnie ? [{ separator: 'Carte' }, { key: 'carte', label: 'Marqueurs' }] : []),
     ...(isSystem ? [{ separator: 'Système' }, { key: 'systeme', label: 'Outils de test' }] : []),
   ])
@@ -56,6 +58,8 @@
         <MembersSection businessId={$currentBusinessId} />
       {:else if tab === 'logs'}
         <LogsSection businessId={$currentBusinessId} />
+      {:else if tab === 'webhook'}
+        <WebhookSection businessId={$currentBusinessId} />
       {:else if tab === 'carte'}
         <MapTypesSection businessId={$currentBusinessId} />
       {:else if tab === 'systeme'}

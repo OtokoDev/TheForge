@@ -95,6 +95,26 @@ public class BusinessService {
         businessRepo.update(business);
     }
 
+    @Transactional
+    public String getWebhookUrl(User actor, UUID businessId) {
+        Business business = require(businessId);
+        access.requireAdmin(actor, businessId);
+        return business.getWebhookUrl();
+    }
+
+    /** Définit (ou efface si vide) le webhook Discord du business. Réservé à l'ADMIN. */
+    @Transactional
+    public void setWebhookUrl(User actor, UUID businessId, String url) {
+        Business business = require(businessId);
+        access.requireAdmin(actor, businessId);
+        if (url != null && !url.isBlank() && !url.startsWith("https://")) {
+            throw new IllegalArgumentException("URL de webhook invalide (https attendu)");
+        }
+        business.setWebhookUrl(url == null || url.isBlank() ? null : url.trim());
+        business.setModifiedBy(actor.getId());
+        businessRepo.update(business);
+    }
+
     /** Définit les écrans masqués (front) d'un business. Réservé à SYSTEM (garde au contrôleur). */
     @Transactional
     public BusinessDto setHiddenScreens(UUID businessId, List<String> screens) {

@@ -7,6 +7,7 @@ import com.bryan.forge.business.backend.dto.LogoDto;
 import com.bryan.forge.business.backend.dto.MemberDto;
 import com.bryan.forge.business.backend.dto.SetHiddenScreensRequest;
 import com.bryan.forge.business.backend.dto.SetLogoRequest;
+import com.bryan.forge.business.backend.dto.WebhookUrlDto;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -79,6 +80,20 @@ public class BusinessController {
     @Secured("ROLE_SYSTEM")
     public BusinessDto setHiddenScreens(UUID id, @Body SetHiddenScreensRequest req) {
         return businessService.setHiddenScreens(id, req.screens());
+    }
+
+    /** Webhook Discord du business (lecture/écriture ADMIN). */
+    @Get("/{id}/webhook")
+    @Secured(SecurityRule.IS_AUTHENTICATED)
+    public WebhookUrlDto webhook(UUID id) {
+        return new WebhookUrlDto(businessService.getWebhookUrl(currentUser.require(), id));
+    }
+
+    @Put("/{id}/webhook")
+    @Secured(SecurityRule.IS_AUTHENTICATED)
+    public WebhookUrlDto setWebhook(UUID id, @Body WebhookUrlDto req) {
+        businessService.setWebhookUrl(currentUser.require(), id, req.url());
+        return new WebhookUrlDto(businessService.getWebhookUrl(currentUser.require(), id));
     }
 
     @Get("/{id}/logo")

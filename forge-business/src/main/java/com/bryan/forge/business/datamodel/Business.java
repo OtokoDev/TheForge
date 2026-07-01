@@ -38,6 +38,10 @@ public class Business extends VersionedEntity {
     @Column(name = "hidden_screens", nullable = false, columnDefinition = "text")
     private String hiddenScreens = "";
 
+    /** Webhook Discord du business (canal de la faction) ; null → fallback URLs globales. */
+    @Column(name = "webhook_url", length = 500)
+    private String webhookUrl;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -55,6 +59,7 @@ public class Business extends VersionedEntity {
     public UUID getDefaultStockAccountId()  { return defaultStockAccountId; }
     public UUID getDefaultCoffreAccountId() { return defaultCoffreAccountId; }
     public String getHiddenScreens() { return hiddenScreens; }
+    public String getWebhookUrl()   { return webhookUrl; }
     public Instant getCreatedAt()   { return createdAt; }
 
     public void setNom(String nom)               { this.nom = nom; }
@@ -63,4 +68,5 @@ public class Business extends VersionedEntity {
     public void setDefaultStockAccountId(UUID id)  { this.defaultStockAccountId = id; }
     public void setDefaultCoffreAccountId(UUID id) { this.defaultCoffreAccountId = id; }
     public void setHiddenScreens(String hiddenScreens) { this.hiddenScreens = hiddenScreens == null ? "" : hiddenScreens; }
+    public void setWebhookUrl(String webhookUrl) { this.webhookUrl = webhookUrl; }
 }
