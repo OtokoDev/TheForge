@@ -2,7 +2,7 @@
   import { FileText, Box, ChartLine, Flame } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness, currentLogo, shift } from '../lib/session.js'
   import { api } from '../lib/api.js'
-  import { GLOBAL_ROLE_LABELS } from '../lib/roles.js'
+  import { GLOBAL_ROLE_LABELS, canAdminBusiness } from '../lib/roles.js'
 
   const ORANGE = '#E8590C', SOFT = '#f5a06a', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', BORDER = '1px solid rgba(255,255,255,0.07)', GREEN = '#5BBF73'
@@ -15,6 +15,8 @@
   let stockVal = $state(null)
   let creancesDu = $state(null)
   let activity = $state([])
+  let cityTaxDue = $state(0)
+  let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
 
   const ACT = {
     LOGIN_OK: 'Connexion', MEMBER_ADD: 'Ajout membre', ROLE_SET: 'Rôle',
@@ -42,6 +44,8 @@
     api(`/api/businesses/${id}/activity?limit=6`).then((v) => active && (activity = v)).catch(() => {})
     if (compagnie) api(`/api/businesses/${id}/creances`).then((v) => active && (creancesDu = v.reduce((t, f) => t + f.remaining, 0))).catch(() => {})
     else creancesDu = null
+    cityTaxDue = 0
+    if (canAdmin) api(`/api/businesses/${id}/finance/city-tax`).then((v) => active && (cityTaxDue = v.due)).catch(() => {})
     return () => { active = false }
   })
 
@@ -76,6 +80,14 @@
         <span style="display:inline-flex; align-items:center; gap:6px; color:#7fd398; font-size:12px; font-weight:600; background:rgba(91,191,115,0.13); padding:5px 11px; border-radius:999px;"><span style="width:7px;height:7px;border-radius:999px;background:{GREEN};"></span>Service en cours</span>
       {/if}
     </div>
+
+    {#if cityTaxDue > 0}
+      <!-- rappel taxe ville (admin) -->
+      <a href="#/statistiques" style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:rgba(232,160,58,0.10); border:1px solid rgba(232,160,58,0.4); border-radius:12px; padding:11px 14px; text-decoration:none;">
+        <span style="color:#e8c06a; font-size:13.5px; font-weight:600;">⚠ Taxe de la ville due : {fmt(cityTaxDue)} septims — à reverser (Finance → Taxe)</span>
+        <span style="color:{MUTED}; font-size:12px;">Reverser →</span>
+      </a>
+    {/if}
 
     <!-- KPIs -->
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px;">
