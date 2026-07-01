@@ -41,8 +41,9 @@ class FinanceServiceTest {
     private final UserRepository userRepo = mock(UserRepository.class);
     private final BusinessAccessService access = mock(BusinessAccessService.class);
     private final LedgerService ledgerService = mock(LedgerService.class);
+    private final TaxRateService taxRateService = mock(TaxRateService.class);
     private final FinanceService service = new FinanceService(factureRepo, payoutRepo, expenseRepo,
-            itemRepo, businessRepo, userRepo, access, ledgerService);
+            itemRepo, businessRepo, userRepo, access, ledgerService, taxRateService);
 
     private final User actor = mock(User.class);
     private final UUID biz = UUID.randomUUID();

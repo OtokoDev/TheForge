@@ -6,7 +6,6 @@ import com.bryan.forge.billing.backend.dto.FactureDto;
 import com.bryan.forge.billing.datamodel.Facture;
 import com.bryan.forge.billing.datamodel.FactureLine;
 import com.bryan.forge.billing.datamodel.FactureStatus;
-import com.bryan.forge.billing.datamodel.TaxBase;
 import com.bryan.forge.billing.datarepository.FactureLineRepository;
 import com.bryan.forge.billing.datarepository.FactureRepository;
 import com.bryan.forge.billing.datarepository.SessionRepository;
@@ -182,7 +181,7 @@ class FactureServiceTest {
     }
 
     @Test
-    void taxeSurLeCA_partBusinessSurLeChiffreDAffaires() {
+    void partForgeronSurLeCA_forgeGardeLeReste() {
         Business business = mock(Business.class);
         Facture facture = new Facture(biz, 1, UUID.randomUUID(), null, null);
         FactureLine line = new FactureLine(fid, itemX, 1, new BigDecimal("100")); // CA = 100
@@ -195,8 +194,7 @@ class FactureServiceTest {
         when(accountRepo.findById(coffre)).thenReturn(Optional.of(new Account(biz, "Coffre", AccountKind.COFFRE)));
         when(lineRepo.findByFactureId(fid)).thenReturn(List.of(line));
         when(costingService.costOf(biz, itemX)).thenReturn(new BigDecimal("60")); // bénéfice = 40
-        when(taxRateService.currentRate(biz)).thenReturn(new BigDecimal("0.1"));
-        when(taxRateService.currentBase(biz)).thenReturn(TaxBase.REVENUE);
+        when(taxRateService.currentRate(biz)).thenReturn(new BigDecimal("0.1")); // part forgeron 10 % du CA
         when(itemRepo.findFirstBySystemTrue()).thenReturn(Optional.of(septime));
         when(itemRepo.findAll()).thenReturn(List.of());
         when(ledgerService.balanceOf(stock, itemX)).thenReturn(5L); // en stock
@@ -205,8 +203,8 @@ class FactureServiceTest {
 
         assertThat(dto.totalAmount()).isEqualTo(100L);
         assertThat(dto.totalProfit()).isEqualByComparingTo("40");
-        assertThat(dto.businessShare()).isEqualByComparingTo("10"); // 100 × 0,1 sur le CA
-        assertThat(dto.workerShare()).isEqualByComparingTo("30");   // bénéfice 40 − 10
+        assertThat(dto.workerShare()).isEqualByComparingTo("10");   // 100 × 0,1 (part forgeron sur le CA)
+        assertThat(dto.businessShare()).isEqualByComparingTo("30");  // bénéfice 40 − 10 (la forge garde)
     }
 
     @Test

@@ -23,14 +23,22 @@ public class TaxRate extends VersionedEntity {
     @Column(name = "business_id", columnDefinition = "uuid", nullable = false)
     private UUID businessId;
 
-    /** Fraction prélevée pour la part business (0..1). */
+    /** Part forgeron : fraction du CA (prix de vente) reversée au forgeron (0..1). */
     @Column(nullable = false, precision = 5, scale = 4)
     private BigDecimal rate;
 
-    /** Assiette : sur le bénéfice (PROFIT, défaut) ou sur le chiffre d'affaires (REVENUE). */
+    /** Historique : assiette (dormant, la part forgeron est toujours sur le CA). */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private TaxBase base = TaxBase.PROFIT;
+
+    /** Taxe ville : forfait hebdomadaire (septimes). */
+    @Column(name = "city_fixed", nullable = false)
+    private long cityFixed = 0;
+
+    /** Taxe ville : fraction du CA après paie forgerons (0..1). */
+    @Column(name = "city_rate", nullable = false, precision = 5, scale = 4)
+    private BigDecimal cityRate = BigDecimal.ZERO;
 
     @Column(name = "valid_from", nullable = false, updatable = false)
     private Instant validFrom = Instant.now();
@@ -40,16 +48,19 @@ public class TaxRate extends VersionedEntity {
 
     protected TaxRate() {}
 
-    public TaxRate(UUID businessId, BigDecimal rate, TaxBase base) {
+    public TaxRate(UUID businessId, BigDecimal rate, long cityFixed, BigDecimal cityRate) {
         this.businessId = businessId;
         this.rate = rate;
-        this.base = base;
+        this.cityFixed = cityFixed;
+        this.cityRate = cityRate;
     }
 
     public UUID getId()           { return id; }
     public UUID getBusinessId()   { return businessId; }
     public BigDecimal getRate()   { return rate; }
     public TaxBase getBase()      { return base; }
+    public long getCityFixed()    { return cityFixed; }
+    public BigDecimal getCityRate() { return cityRate; }
     public Instant getValidFrom() { return validFrom; }
     public Instant getValidTo()   { return validTo; }
 

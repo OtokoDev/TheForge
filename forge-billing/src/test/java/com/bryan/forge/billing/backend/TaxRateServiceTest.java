@@ -1,7 +1,6 @@
 package com.bryan.forge.billing.backend;
 
 import com.bryan.forge.billing.backend.dto.TaxRateDto;
-import com.bryan.forge.billing.datamodel.TaxBase;
 import com.bryan.forge.billing.datamodel.TaxRate;
 import com.bryan.forge.billing.datarepository.TaxRateRepository;
 import com.bryan.forge.business.backend.BusinessAccessService;
@@ -41,7 +40,7 @@ class TaxRateServiceTest {
         when(repo.findByBusinessIdAndValidToIsNull(biz)).thenReturn(Optional.of(existing));
         when(repo.save(any(TaxRate.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TaxRateDto dto = service.setRate(actor, biz, new BigDecimal("0.5"), TaxBase.PROFIT);
+        TaxRateDto dto = service.setRate(actor, biz, new BigDecimal("0.5"), 0L, BigDecimal.ZERO);
 
         assertThat(dto.rate()).isEqualByComparingTo("0.5");
         verify(existing).setValidTo(any(Instant.class));
@@ -50,14 +49,15 @@ class TaxRateServiceTest {
     }
 
     @Test
-    void enregistreLAssietteCA() {
+    void enregistreLaTaxeVille() {
         when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
         when(repo.findByBusinessIdAndValidToIsNull(biz)).thenReturn(Optional.empty());
         when(repo.save(any(TaxRate.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TaxRateDto dto = service.setRate(actor, biz, new BigDecimal("0.1"), TaxBase.REVENUE);
+        TaxRateDto dto = service.setRate(actor, biz, new BigDecimal("0.1"), 500L, new BigDecimal("0.05"));
 
-        assertThat(dto.base()).isEqualTo(TaxBase.REVENUE);
+        assertThat(dto.cityFixed()).isEqualTo(500L);
+        assertThat(dto.cityRate()).isEqualByComparingTo("0.05");
     }
 
     @Test
@@ -65,7 +65,7 @@ class TaxRateServiceTest {
         Business business = mock(Business.class);
         when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
 
-        assertThatThrownBy(() -> service.setRate(actor, biz, new BigDecimal("1.5"), TaxBase.PROFIT))
+        assertThatThrownBy(() -> service.setRate(actor, biz, new BigDecimal("1.5"), 0L, BigDecimal.ZERO))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(repo, never()).save(any());
     }

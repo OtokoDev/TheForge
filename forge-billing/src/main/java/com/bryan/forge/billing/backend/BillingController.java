@@ -43,7 +43,7 @@ public class BillingController {
 
     @Put("/tax-rate")
     public TaxRateDto setTaxRate(UUID businessId, @Body SetTaxRateRequest req) {
-        return taxRateService.setRate(currentUser.require(), businessId, req.rate(), req.base());
+        return taxRateService.setRate(currentUser.require(), businessId, req.rate(), req.cityFixed(), req.cityRate());
     }
 
     @Get("/tax-rate/history")

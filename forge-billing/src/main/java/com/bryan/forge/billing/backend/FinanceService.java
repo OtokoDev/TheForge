@@ -26,6 +26,8 @@ import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,11 +52,13 @@ public class FinanceService {
     private final UserRepository userRepo;
     private final BusinessAccessService access;
     private final LedgerService ledgerService;
+    private final TaxRateService taxRateService;
 
     public FinanceService(FactureRepository factureRepo, PayoutRepository payoutRepo,
                           ExpenseRepository expenseRepo, ItemRepository itemRepo,
                           BusinessRepository businessRepo, UserRepository userRepo,
-                          BusinessAccessService access, LedgerService ledgerService) {
+                          BusinessAccessService access, LedgerService ledgerService,
+                          TaxRateService taxRateService) {
         this.factureRepo = factureRepo;
         this.payoutRepo = payoutRepo;
         this.expenseRepo = expenseRepo;
@@ -63,6 +67,7 @@ public class FinanceService {
         this.userRepo = userRepo;
         this.access = access;
         this.ledgerService = ledgerService;
+        this.taxRateService = taxRateService;
     }
 
     @Transactional
@@ -155,16 +160,27 @@ public class FinanceService {
 
     private static final String CITY_TAX = "Taxe ville";
 
-    /** Taxe due à la ville = part entreprise cumulée − déjà reversé (catégorie « Taxe ville »). */
+    /**
+     * Taxe ville due = forfait hebdo × semaines écoulées + taux × Σ(CA − part forgeron), le tout
+     * cumulatif − déjà reversé (catégorie « Taxe ville »). À reverser ~1×/semaine.
+     */
     @Transactional
     public long cityTaxDue(User actor, UUID businessId) {
         requireBusiness(businessId);
         access.requireView(actor, businessId);
-        long share = round(validatedFactures(businessId).stream()
-                .map(Facture::getBusinessShare).reduce(BigDecimal.ZERO, BigDecimal::add));
+        Business b = businessRepo.findById(businessId)
+                .orElseThrow(() -> new NoSuchElementException("Business introuvable : " + businessId));
+        // Part variable : % du CA après paie des forgerons = Σ(CA − part forgeron).
+        BigDecimal caApresForgerons = validatedFactures(businessId).stream()
+                .map(f -> BigDecimal.valueOf(f.getTotalAmount()).subtract(f.getWorkerShare()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long variable = round(caApresForgerons.multiply(taxRateService.currentCityRate(businessId)));
+        // Forfait : montant hebdo × nb de semaines écoulées depuis la création du business.
+        long weeks = Math.max(0, Duration.between(b.getCreatedAt(), Instant.now()).toDays() / 7);
+        long fixed = taxRateService.currentCityFixed(businessId) * weeks;
         long reversed = expenseRepo.findByBusinessIdOrderByCreatedAtDesc(businessId).stream()
                 .filter(e -> CITY_TAX.equals(e.getCategory())).mapToLong(Expense::getAmount).sum();
-        return Math.max(0, share - reversed);
+        return Math.max(0, fixed + variable - reversed);
     }
 
     /** Reverse la taxe de la ville : dépense historisée (septimes sortis du coffre). ADMIN. */

@@ -1,11 +1,9 @@
 package com.bryan.forge.billing.backend.dto;
 
-import com.bryan.forge.billing.datamodel.TaxBase;
-import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
 import java.math.BigDecimal;
 
-/** {@code base} optionnel : PROFIT par défaut côté service. */
+/** rate = part forgeron (0..1). cityFixed = forfait hebdo taxe ville. cityRate = % taxe ville (0..1). */
 @Serdeable
-public record SetTaxRateRequest(BigDecimal rate, @Nullable TaxBase base) {}
+public record SetTaxRateRequest(BigDecimal rate, long cityFixed, BigDecimal cityRate) {}
