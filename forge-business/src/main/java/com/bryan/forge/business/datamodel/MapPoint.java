@@ -18,7 +18,7 @@ public class MapPoint {
     @Column(name = "business_id", columnDefinition = "uuid", nullable = false)
     private UUID businessId;
 
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, length = 64)
     private String type;
 
     @Column(nullable = false, length = 120)
@@ -59,4 +59,8 @@ public class MapPoint {
     public int getY()           { return y; }
     public String getNote()     { return note; }
     public UUID getCreatedBy()  { return createdBy; }
+
+    public void setType(String type)   { this.type = type; }
+    public void setLabel(String label) { this.label = label; }
+    public void setNote(String note)   { this.note = note; }
 }

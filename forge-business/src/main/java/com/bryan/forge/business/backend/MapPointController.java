@@ -2,12 +2,14 @@ package com.bryan.forge.business.backend;
 
 import com.bryan.forge.business.backend.dto.CreateMapPointRequest;
 import com.bryan.forge.business.backend.dto.MapPointDto;
+import com.bryan.forge.business.backend.dto.UpdateMapPointRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Put;
 import io.micronaut.http.annotation.Status;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
@@ -40,6 +42,11 @@ public class MapPointController {
     @Status(HttpStatus.CREATED)
     public MapPointDto create(UUID businessId, @Body CreateMapPointRequest req) {
         return service.create(currentUser.require(), businessId, req);
+    }
+
+    @Put("/{id}")
+    public MapPointDto update(UUID businessId, UUID id, @Body UpdateMapPointRequest req) {
+        return service.update(currentUser.require(), businessId, id, req);
     }
 
     @Delete("/{id}")

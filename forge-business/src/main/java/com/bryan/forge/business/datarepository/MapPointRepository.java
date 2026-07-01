@@ -11,4 +11,8 @@ import java.util.UUID;
 public interface MapPointRepository extends JpaRepository<MapPoint, UUID> {
 
     List<MapPoint> findByBusinessId(UUID businessId);
+
+    long countByType(String type);
+
+    void deleteByType(String type);
 }

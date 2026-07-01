@@ -7,13 +7,14 @@
   import CardContent from '../ui/CardContent.svelte'
   import Input from '../ui/Input.svelte'
   import Button from '../ui/Button.svelte'
-  import { Trash2, Upload } from '@lucide/svelte'
+  import { Trash2, Upload, Pencil, X } from '@lucide/svelte'
 
   let { businessId } = $props()
   const MAX = 1024 * 1024
   const fail = (e) => notifyError(e instanceof ApiError ? e.message : 'Erreur inattendue')
 
   let types = $state([])
+  let editId = $state(null)
   let label = $state('')
   let color = $state('#E8590C')
   let imageDataUrl = $state(null)
@@ -27,6 +28,19 @@
     load()
   })
 
+  function reset() {
+    editId = null
+    label = ''
+    color = '#E8590C'
+    imageDataUrl = null
+  }
+  function startEdit(t) {
+    editId = t.id
+    label = t.label
+    color = t.color
+    imageDataUrl = t.imageDataUrl ?? null
+  }
+
   function onFile(e) {
     const f = e.currentTarget.files?.[0]
     if (!f) return
@@ -37,25 +51,33 @@
     e.currentTarget.value = ''
   }
 
-  async function create() {
+  async function save() {
     if (!label.trim()) return notifyError('Libellé requis')
+    const body = JSON.stringify({ label: label.trim(), color, imageDataUrl })
     try {
-      await api(`/api/businesses/${businessId}/marker-types`, {
-        method: 'POST',
-        body: JSON.stringify({ label: label.trim(), color, imageDataUrl }),
-      })
-      notifySuccess('Type ajouté')
-      label = ''
-      imageDataUrl = null
+      if (editId) {
+        await api(`/api/businesses/${businessId}/marker-types/${editId}`, { method: 'PUT', body })
+        notifySuccess('Type modifié')
+      } else {
+        await api(`/api/businesses/${businessId}/marker-types`, { method: 'POST', body })
+        notifySuccess('Type ajouté')
+      }
+      reset()
       load()
     } catch (e) {
       fail(e)
     }
   }
-  async function del(id) {
-    if (!confirm('Supprimer ce type ? Les marqueurs existants de ce type retomberont sur une pastille neutre.')) return
+
+  async function del(t) {
+    const warn =
+      t.usageCount > 0
+        ? `Supprimer le type « ${t.label} » ?\n\n⚠ Attention : suppression de ${t.usageCount} marqueur(s), continuer ?`
+        : `Supprimer le type « ${t.label} » ?`
+    if (!confirm(warn)) return
     try {
-      await api(`/api/businesses/${businessId}/marker-types/${id}`, { method: 'DELETE' })
+      await api(`/api/businesses/${businessId}/marker-types/${t.id}`, { method: 'DELETE' })
+      if (editId === t.id) reset()
       load()
     } catch (e) {
       fail(e)
@@ -80,20 +102,32 @@
       </label>
       <input type="file" accept="image/*" bind:this={fileInput} onchange={onFile} class="hidden" />
       <Button variant="outline" onclick={() => fileInput?.click()}><Upload size={16} /> {imageDataUrl ? 'Image ✓' : 'Image (option.)'}</Button>
-      {#if imageDataUrl}<img src={imageDataUrl} alt="" class="size-9 rounded border object-contain" />{/if}
-      <Button onclick={create}>Ajouter</Button>
+      {#if imageDataUrl}
+        <div class="flex items-center gap-1">
+          <img src={imageDataUrl} alt="" class="size-9 rounded border object-contain" />
+          <button onclick={() => (imageDataUrl = null)} aria-label="Retirer l'image" class="text-muted-foreground hover:text-destructive"><X size={14} /></button>
+        </div>
+      {/if}
+      <Button onclick={save}>{editId ? 'Enregistrer' : 'Ajouter'}</Button>
+      {#if editId}
+        <Button variant="ghost" onclick={reset}>Annuler</Button>
+      {/if}
     </div>
 
     <div class="flex flex-col gap-2">
       {#each types as t (t.id)}
-        <div class="flex items-center gap-3 rounded-lg border p-2">
+        <div class="flex items-center gap-3 rounded-lg border p-2 {editId === t.id ? 'ring-1 ring-primary' : ''}">
           {#if t.imageDataUrl}
             <img src={t.imageDataUrl} alt="" class="size-7 rounded object-contain" />
           {:else}
             <span class="size-4 rounded-full" style="background:{t.color};"></span>
           {/if}
           <span class="flex-1 text-sm font-medium">{t.label}</span>
-          <button onclick={() => del(t.id)} aria-label="Supprimer" class="text-muted-foreground transition hover:text-destructive"><Trash2 size={15} /></button>
+          {#if t.usageCount > 0}
+            <span class="text-xs text-muted-foreground">{t.usageCount} marqueur(s)</span>
+          {/if}
+          <button onclick={() => startEdit(t)} aria-label="Modifier" class="text-muted-foreground transition hover:text-foreground"><Pencil size={15} /></button>
+          <button onclick={() => del(t)} aria-label="Supprimer" class="text-muted-foreground transition hover:text-destructive"><Trash2 size={15} /></button>
         </div>
       {/each}
       {#if types.length === 0}

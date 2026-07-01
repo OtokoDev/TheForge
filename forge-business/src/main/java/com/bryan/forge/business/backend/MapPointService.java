@@ -2,6 +2,7 @@ package com.bryan.forge.business.backend;
 
 import com.bryan.forge.business.backend.dto.CreateMapPointRequest;
 import com.bryan.forge.business.backend.dto.MapPointDto;
+import com.bryan.forge.business.backend.dto.UpdateMapPointRequest;
 import com.bryan.forge.business.datamodel.Business;
 import com.bryan.forge.business.datamodel.BusinessType;
 import com.bryan.forge.business.datamodel.MapPoint;
@@ -60,6 +61,23 @@ public class MapPointService {
                 req.x(), req.y(), note, actor.getId()));
         events.publishEvent(new RealtimeEvent(businessId, "MAP"));
         return MapPointDto.from(saved);
+    }
+
+    @Transactional
+    public MapPointDto update(User actor, UUID businessId, UUID id, UpdateMapPointRequest req) {
+        requireCompagnie(businessId);
+        access.requireOperate(actor, businessId);
+        MapPoint p = repo.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Point introuvable : " + id));
+        if (!p.getBusinessId().equals(businessId)) {
+            throw new ForbiddenException("Ce point n'appartient pas au business");
+        }
+        if (req.label() != null && !req.label().isBlank()) p.setLabel(req.label().trim());
+        if (req.type() != null && !req.type().isBlank()) p.setType(req.type().trim());
+        p.setNote(req.note() == null || req.note().isBlank() ? null : req.note().trim());
+        repo.update(p);
+        events.publishEvent(new RealtimeEvent(businessId, "MAP"));
+        return MapPointDto.from(p);
     }
 
     @Transactional

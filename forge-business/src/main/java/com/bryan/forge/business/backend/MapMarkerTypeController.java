@@ -8,6 +8,7 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Put;
 import io.micronaut.http.annotation.Status;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
@@ -40,6 +41,11 @@ public class MapMarkerTypeController {
     @Status(HttpStatus.CREATED)
     public MapMarkerTypeDto create(UUID businessId, @Body CreateMarkerTypeRequest req) {
         return service.create(currentUser.require(), businessId, req);
+    }
+
+    @Put("/{id}")
+    public MapMarkerTypeDto update(UUID businessId, UUID id, @Body CreateMarkerTypeRequest req) {
+        return service.update(currentUser.require(), businessId, id, req);
     }
 
     @Delete("/{id}")

@@ -23,6 +23,7 @@
   let points = $state([]) // POI dynamiques
   let active = $state({}) // key -> false si masqué
   let pending = $state(null) // { x, y } clic en attente
+  let editing = $state(null) // { id, type, label, note } édition d'un point existant
   let newType = $state('')
   let newLabel = $state('')
   let newNote = $state('')
@@ -63,6 +64,7 @@
       console.log(`Coords carte : x=${x}, y=${y}`)
       if (!canOperate) return
       if (markerTypes.length === 0) return notifyError('Configure d’abord des types de marqueurs (Configuration → Marqueurs)')
+      editing = null
       pending = { x, y }
     })
 
@@ -107,12 +109,18 @@
       html: `<span style="display:flex;align-items:center;gap:5px;transform:translate(-${off}px,-${off}px);white-space:nowrap;">${visual}<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px #000;">${name}</span></span>`,
     })
     let html = `<strong>${name}</strong>` + (type ? `<br><span style="opacity:.65">${type.label}</span>` : '') + (m.note ? `<br>${m.note}` : '')
-    if (dynamic && canOperate) html += `<br><button id="mapdel-${m.id}" style="margin-top:6px;color:#ed8472;background:none;border:none;cursor:pointer;padding:0;">Supprimer</button>`
+    if (dynamic && canOperate) {
+      html += `<br><span style="margin-top:6px;display:inline-flex;gap:12px;">` +
+        `<button id="mapedit-${m.id}" style="color:#7db3ed;background:none;border:none;cursor:pointer;padding:0;">Éditer</button>` +
+        `<button id="mapdel-${m.id}" style="color:#ed8472;background:none;border:none;cursor:pointer;padding:0;">Supprimer</button></span>`
+    }
     const mk = L.marker(map.unproject([m.x, m.y], maxZoom), { icon }).bindPopup(html)
     if (dynamic && canOperate) {
       mk.on('popupopen', () => {
-        const b = document.getElementById(`mapdel-${m.id}`)
-        if (b) b.onclick = () => del(m.id)
+        const d = document.getElementById(`mapdel-${m.id}`)
+        if (d) d.onclick = () => del(m.id)
+        const ed = document.getElementById(`mapedit-${m.id}`)
+        if (ed) ed.onclick = () => startEditPoint(m)
       })
     }
     mk.addTo(markersLayer)
@@ -135,6 +143,25 @@
       pending = null
       newLabel = ''
       newNote = ''
+      loadMap()
+    } catch (e) {
+      fail(e)
+    }
+  }
+  function startEditPoint(m) {
+    map.closePopup()
+    pending = null
+    editing = { id: m.id, type: m.type, label: m.label, note: m.note ?? '' }
+  }
+  async function saveEdit() {
+    if (!editing.label.trim()) return notifyError('Nom requis')
+    try {
+      await api(`/api/businesses/${$currentBusinessId}/map-points/${editing.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ type: editing.type, label: editing.label.trim(), note: editing.note || null }),
+      })
+      notifySuccess('Point modifié')
+      editing = null
       loadMap()
     } catch (e) {
       fail(e)
@@ -184,6 +211,23 @@
           <div class="flex justify-end gap-2">
             <button onclick={() => (pending = null)} class="rounded-md border px-2.5 py-1 text-sm">Annuler</button>
             <button onclick={addPoint} class="rounded-md bg-primary px-2.5 py-1 text-sm font-medium text-primary-foreground">Ajouter</button>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if editing}
+      <div class="absolute right-3 top-3 z-[500] w-64 rounded-xl border bg-popover p-3 text-popover-foreground shadow-xl">
+        <div class="mb-2 text-sm font-semibold">Modifier le point</div>
+        <div class="flex flex-col gap-2">
+          <select bind:value={editing.type} class="rounded-md border bg-input/30 px-2 py-1.5 text-sm">
+            {#each markerTypes as t (t.id)}<option value={t.id}>{t.label}</option>{/each}
+          </select>
+          <input bind:value={editing.label} placeholder="Nom" aria-label="Nom" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
+          <input bind:value={editing.note} placeholder="Note (optionnel)" aria-label="Note" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
+          <div class="flex justify-end gap-2">
+            <button onclick={() => (editing = null)} class="rounded-md border px-2.5 py-1 text-sm">Annuler</button>
+            <button onclick={saveEdit} class="rounded-md bg-primary px-2.5 py-1 text-sm font-medium text-primary-foreground">Enregistrer</button>
           </div>
         </div>
       </div>

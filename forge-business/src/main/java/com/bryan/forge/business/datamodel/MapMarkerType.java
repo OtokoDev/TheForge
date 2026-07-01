@@ -40,4 +40,8 @@ public class MapMarkerType {
     public String getLabel()      { return label; }
     public String getColor()      { return color; }
     public String getImageDataUrl() { return imageDataUrl; }
+
+    public void setLabel(String label) { this.label = label; }
+    public void setColor(String color) { this.color = color; }
+    public void setImageDataUrl(String imageDataUrl) { this.imageDataUrl = imageDataUrl; }
 }
