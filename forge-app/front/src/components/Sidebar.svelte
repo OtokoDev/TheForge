@@ -1,8 +1,8 @@
 <script>
   import { router } from 'svelte-spa-router'
   import {
-    Gauge, FileText, ClipboardList, Anvil, Hammer, Truck, Coins, ChartLine,
-    Wallet, Package, Map, Settings, Globe, Boxes, User,
+    Gauge, FileText, ClipboardList, Anvil, Hammer, Truck, ChartLine,
+    Wallet, Map, Settings, Globe, Boxes, User,
   } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
   import { canAdminBusiness, canStaffView } from '../lib/roles.js'
@@ -15,21 +15,19 @@
     { href: '/commandes', label: 'Commandes', icon: ClipboardList },
     { href: '/atelier', label: 'Atelier', icon: Anvil },
     { href: '/stock', label: 'Stock', icon: Hammer },
-    { href: '/achats', label: 'Achats', icon: Truck },
-    { href: '/rachat', label: 'Créances', icon: Coins },
+    { href: '/approvisionnement', label: 'Approvisionnement', icon: Truck },
     { href: '/statistiques', label: 'Statistiques', icon: ChartLine },
     { href: '/finance', label: 'Finance', icon: Wallet },
-    { href: '/catalogue', label: 'Catalogue', icon: Package },
     { href: '/carte', label: 'Carte', icon: Map },
   ]
 
   let isSystem = $derived($me.user.globalRole === 'SYSTEM')
   let canConfig = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
-  // Créances réservées aux Compagnies (les forges n'ont pas de farmeurs à rembourser).
+  // Carte réservée aux Compagnies (l'onglet Farmeurs d'Approvisionnement l'est aussi, cf. la page).
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
 
   let primary = $derived([
-    ...primaryBase.filter((it) => (it.href !== '/rachat' && it.href !== '/carte') || isCompagnie),
+    ...primaryBase.filter((it) => it.href !== '/carte' || isCompagnie),
     ...(canConfig ? [{ href: '/configuration', label: 'Configuration', icon: Settings }] : []),
   ])
   let secondary = $derived([

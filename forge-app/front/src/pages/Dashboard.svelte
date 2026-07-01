@@ -1,5 +1,5 @@
 <script>
-  import { FileText, Box, Package, ChartLine, Flame } from '@lucide/svelte'
+  import { FileText, Box, ChartLine, Flame } from '@lucide/svelte'
   import { me, currentBusinessId, currentBusiness, currentLogo, shift } from '../lib/session.js'
   import { api } from '../lib/api.js'
   import { GLOBAL_ROLE_LABELS } from '../lib/roles.js'
@@ -48,7 +48,6 @@
   const actions = [
     { href: '#/facturation', label: 'Nouvelle facture', icon: FileText, primary: true },
     { href: '#/stock', label: 'Stock', icon: Box },
-    { href: '#/catalogue', label: 'Catalogue', icon: Package },
     { href: '#/statistiques', label: 'Statistiques', icon: ChartLine },
   ]
 </script>

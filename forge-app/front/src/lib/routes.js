@@ -3,11 +3,9 @@ import Facturation from '../pages/Facturation.svelte'
 import Commandes from '../pages/Commandes.svelte'
 import Atelier from '../pages/Atelier.svelte'
 import Stock from '../pages/Stock.svelte'
-import Achats from '../pages/Achats.svelte'
-import Rachat from '../pages/Rachat.svelte'
+import Approvisionnement from '../pages/Approvisionnement.svelte'
 import Statistiques from '../pages/Statistiques.svelte'
 import Finance from '../pages/Finance.svelte'
-import Catalogue from '../pages/Catalogue.svelte'
 import MapBordeciel from '../pages/MapBordeciel.svelte'
 import Configuration from '../pages/Configuration.svelte'
 import Staff from '../pages/Staff.svelte'
@@ -23,11 +21,11 @@ export const routes = {
   '/commandes': Commandes,
   '/atelier': Atelier,
   '/stock': Stock,
-  '/achats': Achats,
-  '/rachat': Rachat,
+  '/approvisionnement': Approvisionnement,
+  '/achats': Approvisionnement,
+  '/rachat': Approvisionnement,
   '/statistiques': Statistiques,
   '/finance': Finance,
-  '/catalogue': Catalogue,
   '/carte': MapBordeciel,
   '/configuration': Configuration,
   '/staff': Staff,

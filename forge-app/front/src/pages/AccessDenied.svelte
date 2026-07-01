@@ -12,10 +12,10 @@
       Ton rôle Discord n'a pas encore les permissions nécessaires pour cette zone de la forge.
     </p>
     <a
-      href="#/catalogue"
+      href="#/dashboard"
       class="mt-6 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
     >
-      Retour au catalogue
+      Retour au tableau de bord
     </a>
   </div>
 </main>

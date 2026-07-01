@@ -3,7 +3,6 @@
   import { canOperateBusiness } from '../lib/roles.js'
   import { api, ApiError } from '../lib/api.js'
   import { notifyError, notifySuccess } from '../lib/notifications.js'
-  import PageHeader from '../components/PageHeader.svelte'
   import Modal from '../components/ui/Modal.svelte'
   import Button from '../components/ui/Button.svelte'
   import Input from '../components/ui/Input.svelte'
@@ -68,8 +67,6 @@
 
   const dt = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 </script>
-
-<PageHeader title="Achats" description="Approvisionnement fournisseur — paie le coffre, remplit le stock." />
 
 {#if !$currentBusinessId}
   <p class="text-sm text-muted-foreground">Sélectionne un business (en haut).</p>

@@ -9,6 +9,7 @@
   import DevSection from '../components/business/DevSection.svelte'
   import LogsSection from '../components/business/LogsSection.svelte'
   import MapTypesSection from '../components/business/MapTypesSection.svelte'
+  import Catalogue from './Catalogue.svelte'
 
   let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
   let isSystem = $derived($me.user.globalRole === 'SYSTEM')
@@ -17,6 +18,7 @@
     { separator: 'Atelier' },
     { key: 'coffres', label: 'Coffres' },
     { key: 'taxe', label: 'Taxe' },
+    { key: 'catalogue', label: 'Catalogue' },
     { separator: 'Identité' },
     { key: 'logo', label: 'Logo' },
     { separator: 'Équipe' },
@@ -46,6 +48,8 @@
         <AccountsSection businessId={$currentBusinessId} />
       {:else if tab === 'taxe'}
         <TaxSection businessId={$currentBusinessId} />
+      {:else if tab === 'catalogue'}
+        <Catalogue />
       {:else if tab === 'logo'}
         <LogoSection businessId={$currentBusinessId} />
       {:else if tab === 'membres'}
