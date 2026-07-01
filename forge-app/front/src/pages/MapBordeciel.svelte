@@ -139,25 +139,43 @@
   // --- Calques statiques (noms FR + zones d'influence), rendus en SVG vectoriel ---
   const svgFromString = (s) => new DOMParser().parseFromString(s, 'image/svg+xml').documentElement
 
+  // centroïde de polygone (formule de l'aire) ; fallback = 1er point. Placement du nom de hold.
+  function holdCentroid(pts) {
+    let a = 0, cx = 0, cy = 0
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, y1] = pts[i]
+      const [x2, y2] = pts[(i + 1) % pts.length]
+      const f = x1 * y2 - x2 * y1
+      a += f
+      cx += (x1 + x2) * f
+      cy += (y1 + y2) * f
+    }
+    if (a === 0) return pts[0]
+    a *= 0.5
+    return [cx / (6 * a), cy / (6 * a)]
+  }
+
   function holdsSvg() {
-    const polys = holds
-      .map(
-        (h) =>
-          `<polygon points="${h.points.map((p) => p.join(',')).join(' ')}" fill="${h.color}" fill-opacity="0.28" stroke="${h.color}" stroke-opacity="0.85" stroke-width="10" stroke-linejoin="round"/>`,
-      )
+    const parts = holds
+      .map((h) => {
+        const poly = `<polygon points="${h.points.map((p) => p.join(',')).join(' ')}" fill="${h.color}" fill-opacity="0.28" stroke="${h.color}" stroke-opacity="0.85" stroke-width="10" stroke-linejoin="round"/>`
+        const [cx, cy] = h.labelAt ?? holdCentroid(h.points)
+        const label = `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="Georgia, 'Times New Roman', serif" font-size="132" font-weight="700" letter-spacing="16" fill="#f8edd0" fill-opacity="0.92" stroke="#000" stroke-width="8" style="paint-order:stroke">${h.nom.toUpperCase()}</text>`
+        return poly + label
+      })
       .join('')
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mapW} ${mapH}">${polys}</svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mapW} ${mapH}">${parts}</svg>`
   }
 
   function labelsSvg() {
     const t = toponyms
       .map((p) => {
         const cap = p.kind === 'capitale'
-        const size = cap ? 94 : 62
-        const weight = cap ? 700 : 600
+        const size = cap ? 96 : 64
+        const weight = cap ? 800 : 700
         const spacing = cap ? 7 : 2
         const txt = cap ? p.nom.toUpperCase() : p.nom
-        return `<text x="${p.x}" y="${p.y}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="${size}" font-weight="${weight}" letter-spacing="${spacing}" fill="#f6e7c5" stroke="#241708" stroke-width="6" style="paint-order:stroke">${txt}</text>`
+        return `<text x="${p.x}" y="${p.y}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="${size}" font-weight="${weight}" letter-spacing="${spacing}" fill="#f8edd0" stroke="#000000" stroke-width="${cap ? 11 : 8}" style="paint-order:stroke">${txt}</text>`
       })
       .join('')
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mapW} ${mapH}">${t}</svg>`
