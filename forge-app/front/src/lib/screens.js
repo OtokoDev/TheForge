@@ -9,3 +9,10 @@ export const SCREENS = [
   { key: '/statistiques', label: 'Finance' },
   { key: '/carte', label: 'Carte' },
 ]
+
+// Routes alias → écran canonique (pour que la garde masque aussi les deep-links historiques).
+export const ROUTE_ALIASES = {
+  '/achats': '/approvisionnement',
+  '/rachat': '/approvisionnement',
+  '/finance': '/statistiques',
+}

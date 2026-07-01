@@ -3,6 +3,7 @@
   import Router, { router, replace } from 'svelte-spa-router'
   import { api, ApiError, setUnauthorizedHandler } from './lib/api.js'
   import { me, currentBusiness, initBusiness } from './lib/session.js'
+  import { ROUTE_ALIASES } from './lib/screens.js'
   import { startRealtime, onRealtime } from './lib/realtime.js'
   import { routes } from './lib/routes.js'
   import Sidebar from './components/Sidebar.svelte'
@@ -24,7 +25,9 @@
     if (!$me) return
     const hidden = $currentBusiness?.hiddenScreens ?? []
     const loc = router.location
-    if (loc && hidden.some((h) => loc === h || loc.startsWith(h + '/'))) replace('/dashboard')
+    if (!loc) return
+    const eff = ROUTE_ALIASES[loc] ?? loc
+    if (hidden.some((h) => eff === h || eff.startsWith(h + '/'))) replace('/dashboard')
   })
 
   onMount(async () => {

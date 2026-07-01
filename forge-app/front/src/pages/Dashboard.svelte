@@ -48,7 +48,7 @@
   const actions = [
     { href: '#/facturation', label: 'Nouvelle facture', icon: FileText, primary: true },
     { href: '#/stock', label: 'Stock', icon: Box },
-    { href: '#/statistiques', label: 'Statistiques', icon: ChartLine },
+    { href: '#/statistiques', label: 'Finance', icon: ChartLine },
   ]
 </script>
 

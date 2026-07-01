@@ -73,7 +73,6 @@
       const p = map.project(e.latlng, maxZoom)
       const x = Math.round(p.x)
       const y = Math.round(p.y)
-      console.log(`Coords carte : x=${x}, y=${y}`)
       if (!canOperate) return
       if (markerTypes.length === 0) return notifyError('Configure d’abord des types de marqueurs (Configuration → Marqueurs)')
       editing = null
