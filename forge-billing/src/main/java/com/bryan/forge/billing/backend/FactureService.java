@@ -258,6 +258,8 @@ public class FactureService {
 
         BigDecimal totalProfit = BigDecimal.valueOf(totalAmount).subtract(totalCost);
         // Part forgeron = taux × CA (prix de vente), versée au forgeron ; la forge garde le reste du bénéfice.
+        // businessShare peut être NÉGATIF (vente à faible marge : la part forgeron est garantie sur le
+        // CA, la forge assume la perte) — choix assumé, pas de garde.
         BigDecimal forgeronRate = taxRateService.currentRate(businessId);
         BigDecimal workerShare = BigDecimal.valueOf(totalAmount).multiply(forgeronRate);
         BigDecimal businessShare = totalProfit.subtract(workerShare);

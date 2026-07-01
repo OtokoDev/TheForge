@@ -116,7 +116,30 @@ public class CommandeService {
         c.setClientName(blankToNull(req.clientName()));
         c.setClientNote(blankToNull(req.clientNote()));
         c.setDueDate(req.dueDate());
-        if (req.acompte() != null) c.setAcompte(Math.max(0, req.acompte()));
+        // Ajustement d'acompte : le delta est encaissé/remboursé au coffre (sinon l'acompte
+        // stocké divergerait de l'argent réellement banké et la facture déduirait du vent).
+        if (req.acompte() != null) {
+            long newAcompte = Math.max(0, req.acompte());
+            long delta = newAcompte - c.getAcompte();
+            if (delta != 0) {
+                Business business = businessRepo.findById(businessId)
+                        .orElseThrow(() -> new NoSuchElementException("Business introuvable : " + businessId));
+                UUID coffre = business.getDefaultCoffreAccountId();
+                if (coffre == null) {
+                    throw new IllegalStateException("Aucun coffre par défaut : impossible d'ajuster l'acompte");
+                }
+                if (delta > 0) {
+                    ledger.applyMovement(businessId, septimeId(), (int) delta, null, coffre,
+                            MovementType.DEPOSIT, "COMMANDE", c.getId(),
+                            "Acompte commande #" + c.getNumero() + " (ajustement)", actor.getId());
+                } else {
+                    ledger.applyMovement(businessId, septimeId(), (int) -delta, coffre, null,
+                            MovementType.WITHDRAWAL, "COMMANDE", c.getId(),
+                            "Remboursement partiel acompte #" + c.getNumero(), actor.getId());
+                }
+                c.setAcompte(newAcompte);
+            }
+        }
         commandeRepo.update(c);
         lineRepo.deleteByCommandeId(id);
         saveLines(id, businessId, req.lines());

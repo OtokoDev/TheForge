@@ -50,6 +50,12 @@ public class TaxRateService {
         return repo.findByBusinessIdAndValidToIsNull(businessId).map(TaxRate::getCityFixed).orElse(0L);
     }
 
+    /** Réglage fiscal courant (entité), pour usage interne (calcul taxe ville). */
+    @Transactional
+    public java.util.Optional<TaxRate> currentEntity(UUID businessId) {
+        return repo.findByBusinessIdAndValidToIsNull(businessId);
+    }
+
     /** Taxe ville — taux courant sur le CA après paie forgerons (0 si non défini). */
     @Transactional
     public BigDecimal currentCityRate(UUID businessId) {

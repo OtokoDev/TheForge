@@ -161,23 +161,30 @@ public class FinanceService {
     private static final String CITY_TAX = "Taxe ville";
 
     /**
-     * Taxe ville due = forfait hebdo × semaines écoulées + taux × Σ(CA − part forgeron), le tout
-     * cumulatif − déjà reversé (catégorie « Taxe ville »). À reverser ~1×/semaine.
+     * Taxe ville due = forfait hebdo × semaines écoulées depuis le réglage courant
+     * + taux × Σ(CA − part forgeron), cumulatif − déjà reversé (catégorie « Taxe ville »).
+     * À reverser ~1×/semaine.
      */
     @Transactional
     public long cityTaxDue(User actor, UUID businessId) {
         requireBusiness(businessId);
         access.requireView(actor, businessId);
-        Business b = businessRepo.findById(businessId)
-                .orElseThrow(() -> new NoSuchElementException("Business introuvable : " + businessId));
+        return cityTaxDueInternal(businessId);
+    }
+
+    /** Variante sans contrôle d'accès (rappel hebdo planifié). */
+    @Transactional
+    public long cityTaxDueInternal(UUID businessId) {
         // Part variable : % du CA après paie des forgerons = Σ(CA − part forgeron).
         BigDecimal caApresForgerons = validatedFactures(businessId).stream()
                 .map(f -> BigDecimal.valueOf(f.getTotalAmount()).subtract(f.getWorkerShare()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long variable = round(caApresForgerons.multiply(taxRateService.currentCityRate(businessId)));
-        // Forfait : montant hebdo × nb de semaines écoulées depuis la création du business.
-        long weeks = Math.max(0, Duration.between(b.getCreatedAt(), Instant.now()).toDays() / 7);
-        long fixed = taxRateService.currentCityFixed(businessId) * weeks;
+        // Forfait : hebdo × semaines écoulées depuis l'entrée en vigueur du réglage courant
+        // (pas depuis la création du business — sinon un forfait réglé tard serait rétroactif).
+        long fixed = taxRateService.currentEntity(businessId)
+                .map(t -> t.getCityFixed() * Math.max(0, Duration.between(t.getValidFrom(), Instant.now()).toDays() / 7))
+                .orElse(0L);
         long reversed = expenseRepo.findByBusinessIdOrderByCreatedAtDesc(businessId).stream()
                 .filter(e -> CITY_TAX.equals(e.getCategory())).mapToLong(Expense::getAmount).sum();
         return Math.max(0, fixed + variable - reversed);
