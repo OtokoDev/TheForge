@@ -17,6 +17,7 @@ public record FactureDto(
         boolean paid,
         @Nullable String clientName,
         long totalAmount,
+        long deposit,
         BigDecimal totalCost,
         BigDecimal totalProfit,
         BigDecimal taxRate,

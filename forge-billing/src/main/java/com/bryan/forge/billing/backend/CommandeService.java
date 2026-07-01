@@ -12,11 +12,14 @@ import com.bryan.forge.billing.datamodel.CommandeStatus;
 import com.bryan.forge.billing.datarepository.CommandeLineRepository;
 import com.bryan.forge.billing.datarepository.CommandeRepository;
 import com.bryan.forge.business.backend.BusinessAccessService;
+import com.bryan.forge.business.datamodel.Business;
 import com.bryan.forge.business.datarepository.BusinessRepository;
 import com.bryan.forge.catalog.datamodel.Item;
 import com.bryan.forge.catalog.datarepository.ItemRepository;
 import com.bryan.forge.core.backend.ForbiddenException;
 import com.bryan.forge.core.datamodel.User;
+import com.bryan.forge.ledger.backend.LedgerService;
+import com.bryan.forge.ledger.datamodel.MovementType;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 
@@ -42,11 +45,12 @@ public class CommandeService {
     private final BusinessRepository businessRepo;
     private final BusinessAccessService access;
     private final FactureService factureService;
+    private final LedgerService ledger;
 
     public CommandeService(CommandeRepository commandeRepo, CommandeLineRepository lineRepo,
                            ItemRepository itemRepo, PricingService pricing,
                            BusinessRepository businessRepo, BusinessAccessService access,
-                           FactureService factureService) {
+                           FactureService factureService, LedgerService ledger) {
         this.commandeRepo = commandeRepo;
         this.lineRepo = lineRepo;
         this.itemRepo = itemRepo;
@@ -54,6 +58,7 @@ public class CommandeService {
         this.businessRepo = businessRepo;
         this.access = access;
         this.factureService = factureService;
+        this.ledger = ledger;
     }
 
     @Transactional
@@ -76,14 +81,25 @@ public class CommandeService {
 
     @Transactional
     public CommandeDto create(User actor, UUID businessId, CreateCommandeRequest req) {
-        requireBusiness(businessId);
+        Business business = businessRepo.findById(businessId)
+                .orElseThrow(() -> new NoSuchElementException("Business introuvable : " + businessId));
         access.requireOperate(actor, businessId);
         requireLines(req.lines());
+        long acompte = req.acompte() == null ? 0 : Math.max(0, req.acompte());
         Commande c = new Commande(businessId, commandeRepo.nextNumero(), actor.getId(),
-                blankToNull(req.clientName()), blankToNull(req.clientNote()), req.dueDate(),
-                req.acompte() == null ? 0 : Math.max(0, req.acompte()));
+                blankToNull(req.clientName()), blankToNull(req.clientNote()), req.dueDate(), acompte);
         Commande saved = commandeRepo.save(c);
         saveLines(saved.getId(), businessId, req.lines());
+        // Acompte versé par le client → encaissé au coffre dès la commande.
+        if (acompte > 0) {
+            UUID coffre = business.getDefaultCoffreAccountId();
+            if (coffre == null) {
+                throw new IllegalStateException("Aucun coffre par défaut : impossible d'encaisser l'acompte (configure un coffre)");
+            }
+            ledger.applyMovement(businessId, septimeId(), (int) acompte, null, coffre,
+                    MovementType.DEPOSIT, "COMMANDE", saved.getId(),
+                    "Acompte commande #" + saved.getNumero(), actor.getId());
+        }
         return toDto(saved, lineRepo.findByCommandeId(saved.getId()), itemNames());
     }
 
@@ -116,6 +132,10 @@ public class CommandeService {
         if (c.getStatus() == CommandeStatus.LIVREE || c.getStatus() == CommandeStatus.ANNULEE) {
             throw new IllegalStateException("Commande terminée — statut figé");
         }
+        // Annulation → l'acompte encaissé est remboursé au client.
+        if (status == CommandeStatus.ANNULEE && c.getAcompte() > 0) {
+            refundAcompte(actor, businessId, c);
+        }
         c.setStatus(status);
         commandeRepo.update(c);
         return toDto(c, lineRepo.findByCommandeId(id), itemNames());
@@ -137,7 +157,7 @@ public class CommandeService {
                         .map(l -> new CreateFactureLine(l.getItemId(), l.getQuantity(), l.getUnitPriceSnapshot()))
                         .toList(),
                 c.getClientName(), c.getClientNote());
-        FactureDto facture = factureService.create(actor, businessId, req);
+        FactureDto facture = factureService.create(actor, businessId, req, c.getAcompte());
 
         c.setFactureId(facture.id());
         c.setStatus(CommandeStatus.LIVREE);
@@ -152,6 +172,9 @@ public class CommandeService {
         Commande c = require(id, businessId);
         if (c.getFactureId() != null) {
             throw new IllegalStateException("Commande facturée — non supprimable");
+        }
+        if (c.getAcompte() > 0) {
+            refundAcompte(actor, businessId, c);
         }
         lineRepo.deleteByCommandeId(id);
         commandeRepo.delete(c);
@@ -175,6 +198,24 @@ public class CommandeService {
         if (lines == null || lines.isEmpty()) {
             throw new IllegalArgumentException("Une commande doit avoir au moins une ligne");
         }
+    }
+
+    /** Rembourse l'acompte encaissé (sortie coffre) — annulation/suppression de commande. */
+    private void refundAcompte(User actor, UUID businessId, Commande c) {
+        Business business = businessRepo.findById(businessId)
+                .orElseThrow(() -> new NoSuchElementException("Business introuvable : " + businessId));
+        UUID coffre = business.getDefaultCoffreAccountId();
+        if (coffre == null) {
+            throw new IllegalStateException("Aucun coffre par défaut : impossible de rembourser l'acompte");
+        }
+        ledger.applyMovement(businessId, septimeId(), (int) c.getAcompte(), coffre, null,
+                MovementType.WITHDRAWAL, "COMMANDE", c.getId(),
+                "Remboursement acompte #" + c.getNumero(), actor.getId());
+    }
+
+    private UUID septimeId() {
+        return itemRepo.findFirstBySystemTrue()
+                .orElseThrow(() -> new IllegalStateException("Item septime introuvable")).getId();
     }
 
     private void requireBusiness(UUID businessId) {

@@ -16,6 +16,7 @@ import com.bryan.forge.business.datarepository.BusinessRepository;
 import com.bryan.forge.catalog.datamodel.Item;
 import com.bryan.forge.catalog.datarepository.ItemRepository;
 import com.bryan.forge.core.datamodel.User;
+import com.bryan.forge.ledger.backend.LedgerService;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -27,6 +28,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,8 +42,9 @@ class CommandeServiceTest {
     private final BusinessRepository businessRepo = mock(BusinessRepository.class);
     private final BusinessAccessService access = mock(BusinessAccessService.class);
     private final FactureService factureService = mock(FactureService.class);
+    private final LedgerService ledger = mock(LedgerService.class);
     private final CommandeService service = new CommandeService(commandeRepo, lineRepo, itemRepo,
-            pricing, businessRepo, access, factureService);
+            pricing, businessRepo, access, factureService, ledger);
 
     private final User actor = mock(User.class);
     private final UUID biz = UUID.randomUUID();
@@ -94,10 +97,10 @@ class CommandeServiceTest {
         when(line.getUnitPriceSnapshot()).thenReturn(new BigDecimal("50"));
         when(lineRepo.findByCommandeId(cid)).thenReturn(List.of(line));
         UUID factureId = UUID.randomUUID();
-        FactureDto facture = new FactureDto(factureId, 5L, FactureStatus.BROUILLON, false, null, 0L,
+        FactureDto facture = new FactureDto(factureId, 5L, FactureStatus.BROUILLON, false, null, 0L, 0L,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                 null, null, Instant.now(), null, UUID.randomUUID(), List.of());
-        when(factureService.create(any(), any(), any())).thenReturn(facture);
+        when(factureService.create(any(), any(), any(), anyLong())).thenReturn(facture);
 
         FactureDto out = service.convertToFacture(actor, biz, cid);
 

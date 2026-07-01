@@ -36,6 +36,10 @@ public class Facture {
     @Column(name = "total_amount", nullable = false)
     private long totalAmount = 0;
 
+    /** Acompte déjà encaissé via la commande d'origine ; déduit du montant à encaisser à la validation. */
+    @Column(nullable = false)
+    private long deposit = 0;
+
     @Column(name = "total_cost", nullable = false, precision = 14, scale = 4)
     private BigDecimal totalCost = BigDecimal.ZERO;
 
@@ -89,6 +93,7 @@ public class Facture {
     public UUID getSessionId()        { return sessionId; }
     public FactureStatus getStatus()  { return status; }
     public long getTotalAmount()      { return totalAmount; }
+    public long getDeposit()          { return deposit; }
     public BigDecimal getTotalCost()  { return totalCost; }
     public BigDecimal getTotalProfit(){ return totalProfit; }
     public BigDecimal getTaxRateSnapshot() { return taxRateSnapshot; }
@@ -105,6 +110,7 @@ public class Facture {
     public void setSessionId(UUID sessionId)          { this.sessionId = sessionId; }
     public void setStatus(FactureStatus status)       { this.status = status; }
     public void setTotalAmount(long totalAmount)      { this.totalAmount = totalAmount; }
+    public void setDeposit(long deposit)              { this.deposit = deposit; }
     public void setTotalCost(BigDecimal totalCost)    { this.totalCost = totalCost; }
     public void setTotalProfit(BigDecimal totalProfit){ this.totalProfit = totalProfit; }
     public void setTaxRateSnapshot(BigDecimal r)      { this.taxRateSnapshot = r; }

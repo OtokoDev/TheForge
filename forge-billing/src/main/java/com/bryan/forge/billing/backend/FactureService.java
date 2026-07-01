@@ -96,6 +96,15 @@ public class FactureService {
     /** Crée une facture BROUILLON ; prix de ligne pré-rempli depuis le prix de revente courant. */
     @Transactional
     public FactureDto create(User actor, UUID businessId, CreateFactureRequest req) {
+        return create(actor, businessId, req, 0L);
+    }
+
+    /**
+     * Variante avec acompte déjà encaissé (déposit) : utilisée par la conversion d'une commande.
+     * Le déposit est reporté sur la facture et déduit du montant à encaisser à la validation.
+     */
+    @Transactional
+    public FactureDto create(User actor, UUID businessId, CreateFactureRequest req, long deposit) {
         requireBusiness(businessId);
         access.requireOperate(actor, businessId);
         if (req.lines() == null || req.lines().isEmpty()) {
@@ -104,6 +113,7 @@ public class FactureService {
 
         Facture facture = new Facture(businessId, factureRepo.nextNumero(), actor.getId(),
                 blankToNull(req.clientName()), blankToNull(req.clientNote()));
+        facture.setDeposit(Math.max(0, deposit));
         // Rattache au poste ouvert de l'utilisateur, s'il y en a un.
         sessionRepo.findByBusinessIdAndUserIdAndClosedAtIsNull(businessId, actor.getId())
                 .ifPresent(s -> facture.setSessionId(s.getId()));
@@ -289,8 +299,10 @@ public class FactureService {
                 }
             }
         }
-        if (paid && totalAmount > 0) {
-            ledgerService.applyMovement(businessId, septimeId(), (int) totalAmount,
+        // Acompte déjà encaissé (via la commande) → on n'encaisse que le solde.
+        long toCollect = Math.max(0, totalAmount - facture.getDeposit());
+        if (paid && toCollect > 0) {
+            ledgerService.applyMovement(businessId, septimeId(), (int) toCollect,
                     null, coffre, MovementType.SALE, "FACTURE", factureId, ref, actor.getId());
         }
 
@@ -315,8 +327,9 @@ public class FactureService {
             throw new IllegalStateException("Aucun coffre (configure un coffre par défaut)");
         }
         requireAccount(coffre, businessId);
-        if (facture.getTotalAmount() > 0) {
-            ledgerService.applyMovement(businessId, septimeId(), (int) facture.getTotalAmount(),
+        long toCollect = Math.max(0, facture.getTotalAmount() - facture.getDeposit());
+        if (toCollect > 0) {
+            ledgerService.applyMovement(businessId, septimeId(), (int) toCollect,
                     null, coffre, MovementType.SALE, "FACTURE", factureId, "Encaissement #" + facture.getNumero(), actor.getId());
         }
         facture.setPaid(true);
@@ -374,7 +387,7 @@ public class FactureService {
                         l.getQuantity(), l.getUnitPriceSnapshot(), l.getUnitCostSnapshot(), l.getLineTotal()))
                 .toList();
         return new FactureDto(f.getId(), f.getNumero(), f.getStatus(), f.isPaid(), f.getClientName(),
-                f.getTotalAmount(), f.getTotalCost(), f.getTotalProfit(), f.getTaxRateSnapshot(),
+                f.getTotalAmount(), f.getDeposit(), f.getTotalCost(), f.getTotalProfit(), f.getTaxRateSnapshot(),
                 f.getBusinessShare(), f.getWorkerShare(), f.getClientNote(), f.getInternalNote(),
                 f.getCreatedAt(), f.getValidatedAt(), f.getCreatedBy(), lineDtos);
     }

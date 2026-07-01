@@ -139,12 +139,14 @@
             <td style="padding:11px 16px; text-align:right; color:{TEXT}; font-weight:700; font-variant-numeric:tabular-nums;">{fmt(f.totalAmount)}</td>
           </tr>
           {#if open === f.id}
+            {@const dispTotal = f.totalAmount || f.lines.reduce((s, l) => s + (l.lineTotal || Math.round(Number(l.unitPrice) * l.quantity)), 0)}
             <tr>
               <td colspan="6" style="background:#181513; padding:12px 16px; border-bottom:{BORDER};">
                 <div style="display:flex; flex-wrap:wrap; gap:18px; align-items:center; justify-content:space-between;">
                   <div style="color:#cfc8c2; font-size:13px;">
                     {f.lines.map((l) => `${l.quantity}× ${l.itemName} (${fmt(l.lineTotal || l.unitPrice * l.quantity)})`).join(' · ')}
                     {#if f.status === 'VALIDEE'}<span style="color:{MUTED};"> — bénéf. {fmt(f.totalProfit)} · part forge {fmt(f.businessShare)} · part forgeron {fmt(Math.round(Number(f.totalProfit)) - Math.round(Number(f.businessShare)))} septims</span>{/if}
+                    {#if f.deposit > 0}<div style="color:#f5a06a; font-size:12.5px; margin-top:4px;">Acompte déjà versé : {fmt(f.deposit)} · Net à encaisser : {fmt(Math.max(0, dispTotal - f.deposit))} septims</div>{/if}
                   </div>
                   {#if canOperate}
                     <div style="display:flex; gap:8px;" role="presentation" onclick={(e) => e.stopPropagation()}>
