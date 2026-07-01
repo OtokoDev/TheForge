@@ -12,6 +12,8 @@
   import Badge from '../ui/Badge.svelte'
   import SelectField from '../ui/SelectField.svelte'
   import Modal from '../ui/Modal.svelte'
+  import Checkbox from '../ui/Checkbox.svelte'
+  import { SCREENS } from '../../lib/screens.js'
 
   let businesses = $state([])
   let nom = $state('')
@@ -27,6 +29,20 @@
     }
   }
   onMount(load)
+
+  /** Bascule la visibilité d'un écran pour un business (SYSTEM). */
+  async function toggleScreen(b, key) {
+    const hidden = new Set(b.hiddenScreens ?? [])
+    if (hidden.has(key)) hidden.delete(key)
+    else hidden.add(key)
+    try {
+      await api(`/api/businesses/${b.id}/hidden-screens`, { method: 'PUT', body: JSON.stringify({ screens: [...hidden] }) })
+      notifySuccess('Écrans mis à jour')
+      load()
+    } catch (e) {
+      fail(e)
+    }
+  }
 
   async function createBusiness() {
     if (!nom.trim()) return
@@ -75,6 +91,14 @@
             <Badge variant="outline">{b.type}</Badge>
           </div>
         </CardHeader>
+        <CardContent>
+          <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Écrans visibles</div>
+          <div class="flex flex-col gap-1.5">
+            {#each SCREENS as s (s.key)}
+              <Checkbox label={s.label} checked={!(b.hiddenScreens ?? []).includes(s.key)} onchange={() => toggleScreen(b, s.key)} />
+            {/each}
+          </div>
+        </CardContent>
       </Card>
     {/each}
     {#if businesses.length === 0}

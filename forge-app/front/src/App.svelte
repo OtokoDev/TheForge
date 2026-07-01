@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte'
-  import Router from 'svelte-spa-router'
+  import Router, { router, replace } from 'svelte-spa-router'
   import { api, ApiError, setUnauthorizedHandler } from './lib/api.js'
-  import { me, initBusiness } from './lib/session.js'
+  import { me, currentBusiness, initBusiness } from './lib/session.js'
   import { startRealtime, onRealtime } from './lib/realtime.js'
   import { routes } from './lib/routes.js'
   import Sidebar from './components/Sidebar.svelte'
@@ -16,6 +16,16 @@
   let loaded = $state(false)
   let errored = $state(false)
   let mobileNav = $state(false)
+
+  // Garde de visibilité : un écran masqué pour ce business (par SYSTEM) redirige vers le dashboard.
+  // SYSTEM en est exempté. Front-only (déclutter) : n'empêche pas l'appel direct des API.
+  $effect(() => {
+    if (!$me) return
+    if ($me.user?.globalRole === 'SYSTEM') return
+    const hidden = $currentBusiness?.hiddenScreens ?? []
+    const loc = router.location
+    if (loc && hidden.some((h) => loc === h || loc.startsWith(h + '/'))) replace('/dashboard')
+  })
 
   onMount(async () => {
     setUnauthorizedHandler(() => me.set(null))

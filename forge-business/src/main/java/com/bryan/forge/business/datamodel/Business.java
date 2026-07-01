@@ -34,6 +34,10 @@ public class Business extends VersionedEntity {
     @Column(name = "default_coffre_account_id", columnDefinition = "uuid")
     private UUID defaultCoffreAccountId;
 
+    /** Écrans masqués côté front (CSV de clés de route), pilotés par SYSTEM. */
+    @Column(name = "hidden_screens", nullable = false, columnDefinition = "text")
+    private String hiddenScreens = "";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -50,6 +54,7 @@ public class Business extends VersionedEntity {
     public String getLogoDataUrl()  { return logoDataUrl; }
     public UUID getDefaultStockAccountId()  { return defaultStockAccountId; }
     public UUID getDefaultCoffreAccountId() { return defaultCoffreAccountId; }
+    public String getHiddenScreens() { return hiddenScreens; }
     public Instant getCreatedAt()   { return createdAt; }
 
     public void setNom(String nom)               { this.nom = nom; }
@@ -57,4 +62,5 @@ public class Business extends VersionedEntity {
     public void setLogoDataUrl(String logoDataUrl) { this.logoDataUrl = logoDataUrl; }
     public void setDefaultStockAccountId(UUID id)  { this.defaultStockAccountId = id; }
     public void setDefaultCoffreAccountId(UUID id) { this.defaultCoffreAccountId = id; }
+    public void setHiddenScreens(String hiddenScreens) { this.hiddenScreens = hiddenScreens == null ? "" : hiddenScreens; }
 }

@@ -17,6 +17,7 @@ import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Singleton
 public class BusinessService {
@@ -92,6 +93,21 @@ public class BusinessService {
         business.setLogoDataUrl(dataUrl == null || dataUrl.isBlank() ? null : dataUrl);
         business.setModifiedBy(actor.getId());
         businessRepo.update(business);
+    }
+
+    /** Définit les écrans masqués (front) d'un business. Réservé à SYSTEM (garde au contrôleur). */
+    @Transactional
+    public BusinessDto setHiddenScreens(UUID businessId, List<String> screens) {
+        Business business = require(businessId);
+        String csv = screens == null ? "" : screens.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .distinct()
+                .collect(Collectors.joining(","));
+        business.setHiddenScreens(csv);
+        business.setModifiedBy(currentActor.stampId());
+        businessRepo.update(business);
+        return BusinessDto.from(business);
     }
 
     private Business require(UUID businessId) {

@@ -5,6 +5,7 @@ import com.bryan.forge.business.backend.dto.BusinessDto;
 import com.bryan.forge.business.backend.dto.CreateBusinessRequest;
 import com.bryan.forge.business.backend.dto.LogoDto;
 import com.bryan.forge.business.backend.dto.MemberDto;
+import com.bryan.forge.business.backend.dto.SetHiddenScreensRequest;
 import com.bryan.forge.business.backend.dto.SetLogoRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
@@ -71,6 +72,13 @@ public class BusinessController {
     @Secured(SecurityRule.IS_AUTHENTICATED)
     public void removeMember(UUID id, UUID userId) {
         membershipService.removeMember(currentUser.require(), id, userId);
+    }
+
+    /** Définit les écrans masqués (front) d'un business : réservé au rôle global SYSTEM. */
+    @Put("/{id}/hidden-screens")
+    @Secured("ROLE_SYSTEM")
+    public BusinessDto setHiddenScreens(UUID id, @Body SetHiddenScreensRequest req) {
+        return businessService.setHiddenScreens(id, req.screens());
     }
 
     @Get("/{id}/logo")
