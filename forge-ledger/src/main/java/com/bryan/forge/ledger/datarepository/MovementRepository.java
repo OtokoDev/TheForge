@@ -15,4 +15,7 @@ public interface MovementRepository extends JpaRepository<Movement, UUID> {
 
     /** Journal du business, plus récent en premier. */
     List<Movement> findByBusinessIdOrderByCreatedAtDesc(UUID businessId);
+
+    /** Mouvements liés à une référence métier (ex. FACTURE) — base des avoirs. */
+    List<Movement> findByReferenceTypeAndReferenceIdOrderByCreatedAtAsc(String referenceType, UUID referenceId);
 }

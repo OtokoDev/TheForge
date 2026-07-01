@@ -57,8 +57,11 @@ class FactureServiceTest {
     @SuppressWarnings("unchecked")
     private final io.micronaut.context.event.ApplicationEventPublisher<Object> events =
             mock(io.micronaut.context.event.ApplicationEventPublisher.class);
+    private final com.bryan.forge.ledger.datarepository.MovementRepository movementRepo =
+            mock(com.bryan.forge.ledger.datarepository.MovementRepository.class);
     private final FactureService service = new FactureService(factureRepo, lineRepo, sessionRepo, itemRepo,
-            recipeRepo, pricing, costingService, taxRateService, ledgerService, accountRepo, businessRepo, access, events);
+            recipeRepo, pricing, costingService, taxRateService, ledgerService, accountRepo, movementRepo,
+            businessRepo, access, events);
 
     private final com.bryan.forge.core.datamodel.User actor = mock(com.bryan.forge.core.datamodel.User.class);
     private final UUID biz = UUID.randomUUID();
@@ -205,6 +208,51 @@ class FactureServiceTest {
         assertThat(dto.totalProfit()).isEqualByComparingTo("40");
         assertThat(dto.workerShare()).isEqualByComparingTo("10");   // 100 × 0,1 (part forgeron sur le CA)
         assertThat(dto.businessShare()).isEqualByComparingTo("30");  // bénéfice 40 − 10 (la forge garde)
+    }
+
+    @Test
+    void avoir_inverseLesMouvementsEtAnnule() {
+        Facture facture = new Facture(biz, 7, UUID.randomUUID(), null, null);
+        facture.setStatus(FactureStatus.VALIDEE);
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+        when(itemRepo.findAll()).thenReturn(List.of());
+        when(lineRepo.findByFactureId(fid)).thenReturn(List.of());
+        // Deux mouvements d'origine : marchandise stock→(dehors) et septims (dehors)→coffre.
+        com.bryan.forge.ledger.datamodel.Movement m1 = mock(com.bryan.forge.ledger.datamodel.Movement.class);
+        when(m1.getBusinessId()).thenReturn(biz);
+        when(m1.getItemId()).thenReturn(itemX);
+        when(m1.getQuantity()).thenReturn(3);
+        when(m1.getFromAccountId()).thenReturn(stock);
+        when(m1.getToAccountId()).thenReturn(null);
+        com.bryan.forge.ledger.datamodel.Movement m2 = mock(com.bryan.forge.ledger.datamodel.Movement.class);
+        when(m2.getBusinessId()).thenReturn(biz);
+        when(m2.getItemId()).thenReturn(UUID.randomUUID());
+        when(m2.getQuantity()).thenReturn(30);
+        when(m2.getFromAccountId()).thenReturn(null);
+        when(m2.getToAccountId()).thenReturn(coffre);
+        when(movementRepo.findByReferenceTypeAndReferenceIdOrderByCreatedAtAsc("FACTURE", fid))
+                .thenReturn(List.of(m1, m2));
+
+        FactureDto dto = service.cancel(actor, biz, fid);
+
+        assertThat(dto.status()).isEqualTo(FactureStatus.ANNULEE);
+        verify(access).requireAdmin(actor, biz);
+        // m1 inversé : (null → stock) ; m2 inversé : (coffre → null).
+        verify(ledgerService).applyMovement(eq(biz), eq(itemX), eq(3), isNull(), eq(stock),
+                eq(MovementType.ADJUSTMENT), eq("AVOIR"), eq(fid), any(), any());
+        verify(ledgerService).applyMovement(eq(biz), any(), eq(30), eq(coffre), isNull(),
+                eq(MovementType.ADJUSTMENT), eq("AVOIR"), eq(fid), any(), any());
+    }
+
+    @Test
+    void avoir_refuseSurBrouillon() {
+        Facture facture = new Facture(biz, 8, UUID.randomUUID(), null, null); // BROUILLON
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+        when(factureRepo.findById(fid)).thenReturn(Optional.of(facture));
+
+        assertThatThrownBy(() -> service.cancel(actor, biz, fid))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

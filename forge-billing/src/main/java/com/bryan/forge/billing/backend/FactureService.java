@@ -22,8 +22,10 @@ import com.bryan.forge.core.backend.ForbiddenException;
 import com.bryan.forge.core.datamodel.User;
 import com.bryan.forge.ledger.backend.LedgerService;
 import com.bryan.forge.ledger.datamodel.Account;
+import com.bryan.forge.ledger.datamodel.Movement;
 import com.bryan.forge.ledger.datamodel.MovementType;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
+import com.bryan.forge.ledger.datarepository.MovementRepository;
 import io.micronaut.context.event.ApplicationEventPublisher;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
@@ -50,6 +52,7 @@ public class FactureService {
     private final TaxRateService taxRateService;
     private final LedgerService ledgerService;
     private final AccountRepository accountRepo;
+    private final MovementRepository movementRepo;
     private final BusinessRepository businessRepo;
     private final BusinessAccessService access;
     private final ApplicationEventPublisher<Object> events;
@@ -57,7 +60,8 @@ public class FactureService {
     public FactureService(FactureRepository factureRepo, FactureLineRepository lineRepo, SessionRepository sessionRepo,
                           ItemRepository itemRepo, RecipeComponentRepository recipeRepo, PricingService pricing,
                           CostingService costingService, TaxRateService taxRateService, LedgerService ledgerService,
-                          AccountRepository accountRepo, BusinessRepository businessRepo, BusinessAccessService access,
+                          AccountRepository accountRepo, MovementRepository movementRepo,
+                          BusinessRepository businessRepo, BusinessAccessService access,
                           ApplicationEventPublisher<Object> events) {
         this.factureRepo = factureRepo;
         this.lineRepo = lineRepo;
@@ -69,6 +73,7 @@ public class FactureService {
         this.taxRateService = taxRateService;
         this.ledgerService = ledgerService;
         this.accountRepo = accountRepo;
+        this.movementRepo = movementRepo;
         this.businessRepo = businessRepo;
         this.access = access;
         this.events = events;
@@ -332,6 +337,34 @@ public class FactureService {
                     null, coffre, MovementType.SALE, "FACTURE", factureId, "Encaissement #" + facture.getNumero(), actor.getId());
         }
         facture.setPaid(true);
+        factureRepo.update(facture);
+        return toDto(facture, lineRepo.findByFactureId(factureId), itemNames());
+    }
+
+    /**
+     * Avoir : annule une facture VALIDEE en inversant tous ses mouvements (marchandise retourne
+     * au stock, septims encaissés ressortent du coffre). Réservé ADMIN. L'acompte d'une commande
+     * d'origine n'est PAS remboursé ici (il appartient au flux commande). Cf. hors-périmètre v1 levé.
+     */
+    @Transactional
+    public FactureDto cancel(User actor, UUID businessId, UUID factureId) {
+        requireBusiness(businessId);
+        access.requireAdmin(actor, businessId);
+        Facture facture = requireFacture(factureId, businessId);
+        if (facture.getStatus() != FactureStatus.VALIDEE) {
+            throw new IllegalStateException("Seule une facture validée peut être annulée par avoir");
+        }
+        String ref = "Avoir facture #" + facture.getNumero();
+        List<Movement> movements = movementRepo
+                .findByReferenceTypeAndReferenceIdOrderByCreatedAtAsc("FACTURE", factureId);
+        for (Movement m : movements) {
+            // Inversion : from/to permutés. La garde de solde s'applique (si le coffre a été
+            // vidé entre-temps, l'avoir échoue et tout est rollback).
+            ledgerService.applyMovement(m.getBusinessId(), m.getItemId(), m.getQuantity(),
+                    m.getToAccountId(), m.getFromAccountId(), MovementType.ADJUSTMENT,
+                    "AVOIR", factureId, ref, actor.getId());
+        }
+        facture.setStatus(FactureStatus.ANNULEE);
         factureRepo.update(facture);
         return toDto(facture, lineRepo.findByFactureId(factureId), itemNames());
     }

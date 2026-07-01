@@ -69,6 +69,10 @@
     if (!confirm('Supprimer ce brouillon ? Action irréversible.')) return
     try { await api(`/api/businesses/${businessId}/factures/${id}`, { method: 'DELETE' }); notifySuccess('Brouillon supprimé'); onChange() } catch (e) { fail(e) }
   }
+  async function annuler(f) {
+    if (!confirm(`Annuler la facture #${String(f.numero).padStart(4, '0')} par avoir ?\n\nLa marchandise retourne au stock et les septims encaissés ressortent du coffre.`)) return
+    try { await api(`/api/businesses/${businessId}/factures/${f.id}/cancel`, { method: 'POST' }); notifySuccess('Facture annulée (avoir)'); onChange() } catch (e) { fail(e) }
+  }
   // Édition/suppression d'un brouillon : son créateur ou un admin du business.
   const canEditDraft = (f) => canAdmin || f.createdBy === meId
 
@@ -129,9 +133,9 @@
       </thead>
       <tbody>
         {#each rows as f (f.id)}
-          {@const statut = f.status === 'BROUILLON' ? 'Brouillon' : f.paid ? 'Payé' : 'Non payé'}
-          {@const sColor = f.status === 'BROUILLON' ? MUTED : f.paid ? '#7fd398' : RED}
-          {@const sBg = f.status === 'BROUILLON' ? 'rgba(255,255,255,0.06)' : f.paid ? 'rgba(91,191,115,0.13)' : 'rgba(229,96,77,0.13)'}
+          {@const statut = f.status === 'BROUILLON' ? 'Brouillon' : f.status === 'ANNULEE' ? 'Annulée' : f.paid ? 'Payé' : 'Non payé'}
+          {@const sColor = f.status === 'BROUILLON' ? MUTED : f.status === 'ANNULEE' ? '#b3a89d' : f.paid ? '#7fd398' : RED}
+          {@const sBg = f.status === 'BROUILLON' || f.status === 'ANNULEE' ? 'rgba(255,255,255,0.06)' : f.paid ? 'rgba(91,191,115,0.13)' : 'rgba(229,96,77,0.13)'}
           <tr onclick={() => toggleOpen(f.id)} style="border-bottom:{BORDER}; cursor:pointer; background:{open === f.id ? 'rgba(255,255,255,0.03)' : 'transparent'};">
             <td style="padding:11px 16px; color:{TEXT}; font-weight:600; font-variant-numeric:tabular-nums;">#{String(f.numero).padStart(4, '0')}</td>
             <td style="padding:11px 16px; color:#9a938c;">{dt(f.createdAt)}</td>
@@ -159,8 +163,13 @@
                         {/if}
                         <button onclick={() => validate(f.id, true)} style={btnPrimary}>Émettre &amp; encaisser</button>
                         <button onclick={() => validate(f.id, false)} style={btnGhost}>Émettre à crédit</button>
-                      {:else if !f.paid}
-                        <button onclick={() => encaisser(f.id)} style={btnPrimary}>Encaisser</button>
+                      {:else if f.status === 'VALIDEE'}
+                        {#if !f.paid}
+                          <button onclick={() => encaisser(f.id)} style={btnPrimary}>Encaisser</button>
+                        {/if}
+                        {#if canAdmin}
+                          <button onclick={() => annuler(f)} style={btnDanger}>Annuler (avoir)</button>
+                        {/if}
                       {/if}
                     </div>
                   {/if}

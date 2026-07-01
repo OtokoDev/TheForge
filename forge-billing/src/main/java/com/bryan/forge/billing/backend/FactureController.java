@@ -79,6 +79,12 @@ public class FactureController {
                 req.paid(), req.stockAccountId(), req.coffreAccountId());
     }
 
+    /** Avoir : annule une facture validée en inversant ses mouvements (ADMIN). */
+    @Post("/{factureId}/cancel")
+    public FactureDto cancel(UUID businessId, UUID factureId) {
+        return factureService.cancel(currentUser.require(), businessId, factureId);
+    }
+
     /** Encaisse une facture à crédit (septims → coffre par défaut). */
     @Post("/{factureId}/pay")
     public FactureDto pay(UUID businessId, UUID factureId) {
