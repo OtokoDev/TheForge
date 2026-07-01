@@ -6,6 +6,7 @@ export const SCREENS = [
   { key: '/atelier', label: 'Atelier' },
   { key: '/stock', label: 'Stock' },
   { key: '/approvisionnement', label: 'Approvisionnement' },
+  { key: '/commerce', label: 'Commerce' },
   { key: '/statistiques', label: 'Finance' },
   { key: '/carte', label: 'Carte' },
 ]

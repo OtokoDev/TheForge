@@ -82,6 +82,13 @@ public class BusinessController {
         return businessService.setHiddenScreens(id, req.screens());
     }
 
+    /** Annuaire de tous les business (cible d'un échange inter-business). */
+    @Get("/directory")
+    @Secured(SecurityRule.IS_AUTHENTICATED)
+    public List<BusinessDto> directory() {
+        return businessService.directory();
+    }
+
     /** Webhook Discord du business (lecture/écriture ADMIN). */
     @Get("/{id}/webhook")
     @Secured(SecurityRule.IS_AUTHENTICATED)

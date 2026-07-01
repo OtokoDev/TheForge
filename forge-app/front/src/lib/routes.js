@@ -4,6 +4,7 @@ import Commandes from '../pages/Commandes.svelte'
 import Atelier from '../pages/Atelier.svelte'
 import Stock from '../pages/Stock.svelte'
 import Approvisionnement from '../pages/Approvisionnement.svelte'
+import Commerce from '../pages/Commerce.svelte'
 import Statistiques from '../pages/Statistiques.svelte'
 import MapBordeciel from '../pages/MapBordeciel.svelte'
 import Configuration from '../pages/Configuration.svelte'
@@ -23,6 +24,7 @@ export const routes = {
   '/approvisionnement': Approvisionnement,
   '/achats': Approvisionnement,
   '/rachat': Approvisionnement,
+  '/commerce': Commerce,
   '/statistiques': Statistiques,
   '/finance': Statistiques,
   '/carte': MapBordeciel,

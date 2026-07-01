@@ -95,6 +95,12 @@ public class BusinessService {
         businessRepo.update(business);
     }
 
+    /** Annuaire de tous les business (id, nom, type) — cible d'un échange inter-business. */
+    @Transactional
+    public List<BusinessDto> directory() {
+        return businessRepo.findAll().stream().map(BusinessDto::from).toList();
+    }
+
     @Transactional
     public String getWebhookUrl(User actor, UUID businessId) {
         Business business = require(businessId);
