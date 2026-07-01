@@ -6,7 +6,8 @@
   import { api, ApiError } from '../lib/api.js'
   import { notifyError, notifySuccess } from '../lib/notifications.js'
   import PageHeader from '../components/PageHeader.svelte'
-  import staticMarkers from '../lib/data/markers.json'
+  import toponyms from '../lib/data/toponyms.json'
+  import holds from '../lib/data/holds.json'
 
   const NEUTRAL = '#9a938c'
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
@@ -17,11 +18,16 @@
   let L = null
   let maxZoom = 5
   let markersLayer = null
+  let holdOverlay = null // calque zones d'influence (svgOverlay)
+  let labelOverlay = null // calque noms villes/villages (svgOverlay)
+  let mapW = 0
+  let mapH = 0
+  let mapBounds = null
   let unsub = null
 
   let markerTypes = $state([]) // [{ id, label, color, imageDataUrl }]
   let points = $state([]) // POI dynamiques
-  let active = $state({}) // key -> false si masqué
+  let active = $state({ _holds: false }) // key -> false si masqué (zones masquées par défaut)
   let pending = $state(null) // { x, y } clic en attente
   let editing = $state(null) // { id, type, label, note } édition d'un point existant
   let newType = $state('')
@@ -49,12 +55,17 @@
     await import('leaflet/dist/leaflet.css')
     const meta = await fetch('/map/meta.json').then((r) => r.json())
     maxZoom = meta.maxZoom
+    mapW = meta.width
+    mapH = meta.height
     map = L.map(mapEl, { crs: L.CRS.Simple, preferCanvas: true, minZoom: 0, maxZoom })
-    const bounds = new L.LatLngBounds(map.unproject([0, meta.height], maxZoom), map.unproject([meta.width, 0], maxZoom))
-    L.tileLayer('/map/tiles/{z}/{x}/{y}.png', { tileSize: meta.tileSize, minZoom: 0, maxZoom, noWrap: true, bounds }).addTo(map)
-    map.setMaxBounds(bounds)
-    map.fitBounds(bounds)
+    mapBounds = new L.LatLngBounds(map.unproject([0, meta.height], maxZoom), map.unproject([meta.width, 0], maxZoom))
+    L.tileLayer('/map/tiles/{z}/{x}/{y}.png', { tileSize: meta.tileSize, minZoom: 0, maxZoom, noWrap: true, bounds: mapBounds }).addTo(map)
+    map.setMaxBounds(mapBounds)
+    map.fitBounds(mapBounds)
     map.attributionControl.addAttribution('Carte © <a href="https://en.uesp.net/" target="_blank" rel="noopener">UESP</a> — CC-BY-SA 2.5')
+    map.createPane('holds').style.zIndex = 410
+    map.createPane('labels').style.zIndex = 450
+    buildOverlays()
     markersLayer = L.layerGroup().addTo(map)
 
     map.on('click', (e) => {
@@ -91,14 +102,13 @@
   function renderAll() {
     if (!map || !markersLayer) return
     markersLayer.clearLayers()
-    if (visible('_static')) for (const m of staticMarkers) addMarker(m, false, null)
-    for (const p of points) if (visible(p.type)) addMarker(p, true, typeById.get(p.type))
+    for (const p of points) if (visible(p.type)) addMarker(p, typeById.get(p.type))
+    syncOverlays()
   }
 
-  function addMarker(m, dynamic, type) {
+  function addMarker(m, type) {
     const color = type?.color ?? NEUTRAL
-    const name = m.nom_fr ?? m.label
-    const img = dynamic ? type?.imageDataUrl : null
+    const img = type?.imageDataUrl
     const off = img ? 13 : 7
     const visual = img
       ? `<img src="${img}" style="width:26px;height:26px;object-fit:contain;filter:drop-shadow(0 1px 3px #000);" />`
@@ -106,16 +116,16 @@
     const icon = L.divIcon({
       className: '',
       iconSize: [0, 0],
-      html: `<span style="display:flex;align-items:center;gap:5px;transform:translate(-${off}px,-${off}px);white-space:nowrap;">${visual}<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px #000;">${name}</span></span>`,
+      html: `<span style="display:flex;align-items:center;gap:5px;transform:translate(-${off}px,-${off}px);white-space:nowrap;">${visual}<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px #000;">${m.label}</span></span>`,
     })
-    let html = `<strong>${name}</strong>` + (type ? `<br><span style="opacity:.65">${type.label}</span>` : '') + (m.note ? `<br>${m.note}` : '')
-    if (dynamic && canOperate) {
+    let html = `<strong>${m.label}</strong>` + (type ? `<br><span style="opacity:.65">${type.label}</span>` : '') + (m.note ? `<br>${m.note}` : '')
+    if (canOperate) {
       html += `<br><span style="margin-top:6px;display:inline-flex;gap:12px;">` +
         `<button id="mapedit-${m.id}" style="color:#7db3ed;background:none;border:none;cursor:pointer;padding:0;">Éditer</button>` +
         `<button id="mapdel-${m.id}" style="color:#ed8472;background:none;border:none;cursor:pointer;padding:0;">Supprimer</button></span>`
     }
     const mk = L.marker(map.unproject([m.x, m.y], maxZoom), { icon }).bindPopup(html)
-    if (dynamic && canOperate) {
+    if (canOperate) {
       mk.on('popupopen', () => {
         const d = document.getElementById(`mapdel-${m.id}`)
         if (d) d.onclick = () => del(m.id)
@@ -124,6 +134,50 @@
       })
     }
     mk.addTo(markersLayer)
+  }
+
+  // --- Calques statiques (noms FR + zones d'influence), rendus en SVG vectoriel ---
+  const svgFromString = (s) => new DOMParser().parseFromString(s, 'image/svg+xml').documentElement
+
+  function holdsSvg() {
+    const polys = holds
+      .map(
+        (h) =>
+          `<polygon points="${h.points.map((p) => p.join(',')).join(' ')}" fill="${h.color}" fill-opacity="0.28" stroke="${h.color}" stroke-opacity="0.85" stroke-width="10" stroke-linejoin="round"/>`,
+      )
+      .join('')
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mapW} ${mapH}">${polys}</svg>`
+  }
+
+  function labelsSvg() {
+    const t = toponyms
+      .map((p) => {
+        const cap = p.kind === 'capitale'
+        const size = cap ? 94 : 62
+        const weight = cap ? 700 : 600
+        const spacing = cap ? 7 : 2
+        const txt = cap ? p.nom.toUpperCase() : p.nom
+        return `<text x="${p.x}" y="${p.y}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="${size}" font-weight="${weight}" letter-spacing="${spacing}" fill="#f6e7c5" stroke="#241708" stroke-width="6" style="paint-order:stroke">${txt}</text>`
+      })
+      .join('')
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mapW} ${mapH}">${t}</svg>`
+  }
+
+  function buildOverlays() {
+    holdOverlay = L.svgOverlay(svgFromString(holdsSvg()), mapBounds, { interactive: false, pane: 'holds' })
+    labelOverlay = L.svgOverlay(svgFromString(labelsSvg()), mapBounds, { interactive: false, pane: 'labels' })
+  }
+
+  function syncOverlays() {
+    if (!map) return
+    for (const [layer, show] of [
+      [holdOverlay, visible('_holds')],
+      [labelOverlay, visible('_labels')],
+    ]) {
+      if (!layer) continue
+      if (show && !map.hasLayer(layer)) layer.addTo(map)
+      else if (!show && map.hasLayer(layer)) map.removeLayer(layer)
+    }
   }
 
   function toggle(key) {
@@ -186,8 +240,11 @@
   <p class="text-sm text-muted-foreground">La carte est réservée aux <strong>compagnies</strong>.</p>
 {:else}
   <div class="mb-3 flex flex-wrap gap-2">
-    <button onclick={() => toggle('_static')} class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition {visible('_static') ? 'border-border bg-muted/60 text-foreground' : 'opacity-50'}">
-      <span class="size-2.5 rounded-full" style="background:{NEUTRAL};"></span>Repères
+    <button onclick={() => toggle('_labels')} class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition {visible('_labels') ? 'border-border bg-muted/60 text-foreground' : 'opacity-50'}">
+      <span class="text-xs font-bold tracking-tight">Aa</span>Noms
+    </button>
+    <button onclick={() => toggle('_holds')} class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition {visible('_holds') ? 'border-border bg-muted/60 text-foreground' : 'opacity-50'}">
+      <span class="size-2.5 rounded-sm" style="background:linear-gradient(135deg,#7a9a3b,#b0603a,#3b6ea5);"></span>Zones d'influence
     </button>
     {#each markerTypes as t (t.id)}
       <button onclick={() => toggle(t.id)} class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition {visible(t.id) ? 'border-border bg-muted/60 text-foreground' : 'opacity-50'}">
