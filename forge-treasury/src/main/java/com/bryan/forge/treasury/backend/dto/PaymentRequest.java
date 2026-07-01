@@ -5,6 +5,6 @@ import io.micronaut.serde.annotation.Serdeable;
 
 import java.util.UUID;
 
-/** Paiement d'un farmeur : septimes sortis d'un coffre. */
+/** Paiement d'un farmeur (nom libre) : septimes sortis d'un coffre. */
 @Serdeable
-public record PaymentRequest(UUID farmerUserId, long amount, UUID coffreAccountId, @Nullable String reference) {}
+public record PaymentRequest(String farmerName, long amount, UUID coffreAccountId, @Nullable String reference) {}

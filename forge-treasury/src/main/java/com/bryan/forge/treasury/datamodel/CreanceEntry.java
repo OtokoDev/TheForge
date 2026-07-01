@@ -21,8 +21,9 @@ public class CreanceEntry {
     @Column(name = "business_id", columnDefinition = "uuid", nullable = false)
     private UUID businessId;
 
-    @Column(name = "farmer_user_id", columnDefinition = "uuid", nullable = false)
-    private UUID farmerUserId;
+    /** Farmeur = nom libre (pas forcément un membre du site). */
+    @Column(name = "farmer_name", nullable = false, length = 120)
+    private String farmerName;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
@@ -42,10 +43,10 @@ public class CreanceEntry {
 
     protected CreanceEntry() {}
 
-    public CreanceEntry(UUID businessId, UUID farmerUserId, CreanceType type, long amount,
+    public CreanceEntry(UUID businessId, String farmerName, CreanceType type, long amount,
                         String reference, UUID createdBy) {
         this.businessId = businessId;
-        this.farmerUserId = farmerUserId;
+        this.farmerName = farmerName;
         this.type = type;
         this.amount = amount;
         this.reference = reference;
@@ -54,7 +55,7 @@ public class CreanceEntry {
 
     public UUID getId()           { return id; }
     public UUID getBusinessId()   { return businessId; }
-    public UUID getFarmerUserId() { return farmerUserId; }
+    public String getFarmerName()  { return farmerName; }
     public CreanceType getType()  { return type; }
     public long getAmount()       { return amount; }
     public String getReference()  { return reference; }

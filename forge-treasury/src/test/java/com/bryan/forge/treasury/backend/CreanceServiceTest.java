@@ -13,6 +13,7 @@ import com.bryan.forge.ledger.datamodel.Account;
 import com.bryan.forge.ledger.datamodel.AccountKind;
 import com.bryan.forge.ledger.datarepository.AccountRepository;
 import com.bryan.forge.treasury.backend.dto.CreanceFarmerDto;
+import com.bryan.forge.treasury.backend.dto.DepositLine;
 import com.bryan.forge.treasury.datamodel.CreanceEntry;
 import com.bryan.forge.treasury.datamodel.CreanceType;
 import com.bryan.forge.treasury.datarepository.CreanceEntryRepository;
@@ -49,58 +50,63 @@ class CreanceServiceTest {
             accountRepo, businessRepo, userRepo, access, audit);
 
     private final UUID biz = UUID.randomUUID();
-    private final UUID farmer = UUID.randomUUID();
+    private final String farmer = "Bob le farmeur"; // nom libre
     private final UUID ore = UUID.randomUUID();
     private final UUID account = UUID.randomUUID();
     private final User actor = mock(User.class);
 
     @Test
-    void depotValoriseArrondiParExcesEtCreeCredit() {
-        Business business = mock(Business.class);
-        User farmerUser = mock(User.class);
-        when(farmerUser.getUsername()).thenReturn("Bob");
+    void depotAuCoutValoriseArrondiParExcesEtCreeCredit() {
         Item oreItem = mock(Item.class);
         when(oreItem.isSystem()).thenReturn(false);
-
-        when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
-        when(userRepo.findById(farmer)).thenReturn(Optional.of(farmerUser));
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
         when(accountRepo.findById(account)).thenReturn(Optional.of(new Account(biz, "Stock", AccountKind.STOCK)));
         when(itemRepo.findById(ore)).thenReturn(Optional.of(oreItem));
         // 3 × 0,5 = 1,5 → arrondi par excès = 2
         when(productRepo.findByBusinessIdAndItemIdAndValidToIsNull(biz, ore))
                 .thenReturn(Optional.of(new Product(biz, ore, new BigDecimal("0.5"), null)));
-        when(repo.findByBusinessIdAndFarmerUserIdOrderByCreatedAtDesc(biz, farmer)).thenReturn(List.of());
+        when(repo.findByBusinessIdAndFarmerNameOrderByCreatedAtDesc(biz, farmer)).thenReturn(List.of());
 
-        service.deposit(actor, biz, farmer,
-                List.of(new com.bryan.forge.treasury.backend.dto.DepositLine(ore, 3)), account, "minerai");
+        service.deposit(actor, biz, farmer, List.of(new DepositLine(ore, 3, null)), account, "minerai");
 
         verify(ledgerService, times(1)).applyMovement(any(), any(), anyInt(), any(), any(), any(), any(), any(), any(), any());
-        verify(repo).save(argThat(e -> e.getType() == CreanceType.CREDIT && e.getAmount() == 2L));
+        verify(repo).save(argThat(e -> e.getType() == CreanceType.CREDIT && e.getAmount() == 2L
+                && e.getFarmerName().equals(farmer)));
+    }
+
+    @Test
+    void depotAvecPrixNegocieUtiliseLePrixFourni() {
+        Item oreItem = mock(Item.class);
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
+        when(accountRepo.findById(account)).thenReturn(Optional.of(new Account(biz, "Stock", AccountKind.STOCK)));
+        when(itemRepo.findById(ore)).thenReturn(Optional.of(oreItem));
+        when(repo.findByBusinessIdAndFarmerNameOrderByCreatedAtDesc(biz, farmer)).thenReturn(List.of());
+
+        // 3 × 10 = 30 (prix d'achat négocié ; le coût catalogue n'est pas consulté)
+        service.deposit(actor, biz, farmer, List.of(new DepositLine(ore, 3, new BigDecimal("10"))), account, null);
+
+        verify(repo).save(argThat(e -> e.getType() == CreanceType.CREDIT && e.getAmount() == 30L));
     }
 
     @Test
     void paiementSortDuCoffreEtCalculeResteDu() {
-        Business business = mock(Business.class);
-        User farmerUser = mock(User.class);
-        when(farmerUser.getUsername()).thenReturn("Bob");
         Item septime = mock(Item.class);
         when(septime.getId()).thenReturn(UUID.randomUUID());
-
-        when(businessRepo.findById(biz)).thenReturn(Optional.of(business));
-        when(userRepo.findById(farmer)).thenReturn(Optional.of(farmerUser));
+        when(businessRepo.findById(biz)).thenReturn(Optional.of(mock(Business.class)));
         when(accountRepo.findById(account)).thenReturn(Optional.of(new Account(biz, "Coffre", AccountKind.COFFRE)));
         when(itemRepo.findFirstBySystemTrue()).thenReturn(Optional.of(septime));
-        // Historique après paiement : crédité 100, payé 30 → reste dû 70 (« payé 30 sur 100 »).
+        // Historique après paiement : crédité 100, payé 30 → reste dû 70.
         UUID author = UUID.randomUUID();
         List<CreanceEntry> history = List.of(
                 new CreanceEntry(biz, farmer, CreanceType.CREDIT, 100, null, author),
                 new CreanceEntry(biz, farmer, CreanceType.PAIEMENT, 30, null, author));
-        when(repo.findByBusinessIdAndFarmerUserIdOrderByCreatedAtDesc(biz, farmer)).thenReturn(history);
+        when(repo.findByBusinessIdAndFarmerNameOrderByCreatedAtDesc(biz, farmer)).thenReturn(history);
 
         CreanceFarmerDto dto = service.pay(actor, biz, farmer, 30, account, "acompte");
 
         verify(ledgerService, times(1)).applyMovement(any(), any(), anyInt(), any(), any(), any(), any(), any(), any(), any());
         verify(repo).save(argThat(e -> e.getType() == CreanceType.PAIEMENT && e.getAmount() == 30L));
+        assertThat(dto.farmerName()).isEqualTo(farmer);
         assertThat(dto.totalCredit()).isEqualTo(100L);
         assertThat(dto.totalPaid()).isEqualTo(30L);
         assertThat(dto.remaining()).isEqualTo(70L);

@@ -12,5 +12,5 @@ public interface CreanceEntryRepository extends JpaRepository<CreanceEntry, UUID
 
     List<CreanceEntry> findByBusinessId(UUID businessId);
 
-    List<CreanceEntry> findByBusinessIdAndFarmerUserIdOrderByCreatedAtDesc(UUID businessId, UUID farmerUserId);
+    List<CreanceEntry> findByBusinessIdAndFarmerNameOrderByCreatedAtDesc(UUID businessId, String farmerName);
 }

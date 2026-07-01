@@ -9,6 +9,7 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
@@ -36,20 +37,20 @@ public class CreanceController {
         return creanceService.listFarmers(currentUser.require(), businessId);
     }
 
-    @Get("/{farmerUserId}/entries")
-    public List<CreanceEntryDto> entries(UUID businessId, UUID farmerUserId) {
-        return creanceService.entries(currentUser.require(), businessId, farmerUserId);
+    @Get("/entries")
+    public List<CreanceEntryDto> entries(UUID businessId, @QueryValue String farmerName) {
+        return creanceService.entries(currentUser.require(), businessId, farmerName);
     }
 
     @Post("/deposit")
     public CreanceFarmerDto deposit(UUID businessId, @Body DepositRequest req) {
-        return creanceService.deposit(currentUser.require(), businessId, req.farmerUserId(),
+        return creanceService.deposit(currentUser.require(), businessId, req.farmerName(),
                 req.lines(), req.stockAccountId(), req.reference());
     }
 
     @Post("/payment")
     public CreanceFarmerDto payment(UUID businessId, @Body PaymentRequest req) {
-        return creanceService.pay(currentUser.require(), businessId, req.farmerUserId(),
+        return creanceService.pay(currentUser.require(), businessId, req.farmerName(),
                 req.amount(), req.coffreAccountId(), req.reference());
     }
 }

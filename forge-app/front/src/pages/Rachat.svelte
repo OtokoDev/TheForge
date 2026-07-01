@@ -4,7 +4,6 @@
   import { api, ApiError } from '../lib/api.js'
   import { canOperateBusiness } from '../lib/roles.js'
   import { notifySuccess, notifyError } from '../lib/notifications.js'
-  import UserAutocomplete from '../components/admin/UserAutocomplete.svelte'
 
   const ORANGE = '#E8590C', SOFT = '#f5a06a', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', PANEL = '#1a1613'
@@ -30,15 +29,16 @@
   let sort = $state({ key: 'solde', dir: 'desc' })
 
   // panneau paiement
-  let payFarmer = $state(null) // {farmerUserId, farmerUsername, remaining}
+  let payFarmer = $state(null) // { farmerName, remaining, ... }
   let payAmount = $state('')
   let payEntries = $state([])
 
   // caisse de rachat
-  let rFarmer = $state(null) // UserSummary {id, username, inGameName}
+  let rFarmerName = $state('') // nom libre
   let rQuery = $state('')
   let rCat = $state('all')
   let cart = $state({}) // itemId -> qty
+  let prices = $state({}) // itemId -> prix d'achat unitaire (éditable)
   let rMotif = $state('')
 
   function load() {
@@ -68,10 +68,10 @@
       if (filter === 'solde') return f.remaining === 0
       return true
     })
-    if (q) r = r.filter((f) => f.farmerUsername.toLowerCase().includes(q))
+    if (q) r = r.filter((f) => f.farmerName.toLowerCase().includes(q))
     const dir = sort.dir === 'asc' ? 1 : -1
     return [...r].sort((a, b) => {
-      if (sort.key === 'name') return a.farmerUsername.localeCompare(b.farmerUsername) * dir
+      if (sort.key === 'name') return a.farmerName.localeCompare(b.farmerName) * dir
       if (sort.key === 'rachat') return (a.totalCredit - b.totalCredit) * dir
       if (sort.key === 'paye') return (a.totalPaid - b.totalPaid) * dir
       return (a.remaining - b.remaining) * dir
@@ -99,12 +99,13 @@
     return items.filter((i) => (rCat === 'all' || i.familyId === rCat) && (q === '' || i.name.toLowerCase().includes(q)))
   })
   let itemById = $derived(new Map(items.map((i) => [i.id, i])))
-  let lot = $derived(Object.entries(cart).map(([id, qty]) => ({ id, item: itemById.get(id), qty, cost: costs.get(id) ?? 0 })))
-  let rTotal = $derived(lot.reduce((t, l) => t + l.cost * l.qty, 0))
+  let lot = $derived(Object.entries(cart).map(([id, qty]) => ({ id, item: itemById.get(id), qty, price: prices[id] ?? costs.get(id) ?? 0 })))
+  let rTotal = $derived(lot.reduce((t, l) => t + l.price * l.qty, 0))
   let rUnits = $derived(lot.reduce((t, l) => t + l.qty, 0))
 
   function addMat(id) {
     cart = { ...cart, [id]: (cart[id] ?? 0) + 1 }
+    if (prices[id] === undefined) prices = { ...prices, [id]: costs.get(id) ?? 0 }
   }
   function incMat(id, d) {
     const c = { ...cart }
@@ -112,30 +113,35 @@
     if (c[id] <= 0) delete c[id]
     cart = c
   }
+  function setPrice(id, v) {
+    prices = { ...prices, [id]: Math.max(0, Number(v) || 0) }
+  }
   function openCaisse(farmer) {
-    rFarmer = farmer ? { id: farmer.farmerUserId, username: farmer.farmerUsername, inGameName: null } : null
+    rFarmerName = farmer ? farmer.farmerName : ''
     rQuery = ''
     rCat = 'all'
     cart = {}
+    prices = {}
     rMotif = ''
     view = 'caisse'
   }
   async function deposit(thenPay) {
-    if (!rFarmer) return notifyError('Choisis un farmeur')
-    const lines = lot.map((l) => ({ itemId: l.id, quantity: l.qty }))
+    const name = rFarmerName.trim()
+    if (!name) return notifyError('Nom du farmeur requis')
+    const lines = lot.map((l) => ({ itemId: l.id, quantity: l.qty, unitPrice: l.price }))
     if (lines.length === 0) return notifyError('Ajoute au moins une matière')
     if (!defaults.stockAccountId) return notifyError('Aucun coffre principal (Configuration)')
     try {
       await api(`/api/businesses/${$currentBusinessId}/creances/deposit`, {
         method: 'POST',
-        body: JSON.stringify({ farmerUserId: rFarmer.id, lines, stockAccountId: defaults.stockAccountId, reference: rMotif || null }),
+        body: JSON.stringify({ farmerName: name, lines, stockAccountId: defaults.stockAccountId, reference: rMotif || null }),
       })
       notifySuccess('Rachat enregistré')
-      const fid = rFarmer.id
       view = 'registre'
       cart = {}
+      prices = {}
       await refresh()
-      const fr = farmers.find((f) => f.farmerUserId === fid)
+      const fr = farmers.find((f) => f.farmerName === name)
       if (thenPay && fr) openPay(fr)
     } catch (e) {
       fail(e)
@@ -147,7 +153,8 @@
     payFarmer = f
     payAmount = ''
     payEntries = []
-    api(`/api/businesses/${$currentBusinessId}/creances/${f.farmerUserId}/entries`).then((v) => (payEntries = v)).catch(fail)
+    api(`/api/businesses/${$currentBusinessId}/creances/entries?farmerName=${encodeURIComponent(f.farmerName)}`)
+      .then((v) => (payEntries = v)).catch(fail)
   }
   function solderTout() {
     payAmount = String(payFarmer.remaining)
@@ -159,7 +166,7 @@
     try {
       await api(`/api/businesses/${$currentBusinessId}/creances/payment`, {
         method: 'POST',
-        body: JSON.stringify({ farmerUserId: payFarmer.farmerUserId, amount: n, coffreAccountId: defaults.coffreAccountId, reference: null }),
+        body: JSON.stringify({ farmerName: payFarmer.farmerName, amount: n, coffreAccountId: defaults.coffreAccountId, reference: null }),
       })
       notifySuccess('Paiement enregistré')
       payFarmer = null
@@ -189,7 +196,7 @@
         <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);"></div>
         <div style="color:{TEXT};font-size:18px;font-weight:700;">Nouveau rachat</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;color:{MUTED};font-size:12.5px;"><Info size={14} />Valorisé au coût de la matière</div>
+      <div style="display:flex;align-items:center;gap:8px;color:{MUTED};font-size:12.5px;"><Info size={14} />Prix d'achat éditable par ligne</div>
     </div>
 
     <div style="display:flex;flex-wrap:wrap;gap:0 18px;align-items:stretch;min-height:560px;">
@@ -216,7 +223,7 @@
                 </div>
               </div>
               <div style="display:flex;align-items:baseline;justify-content:space-between;">
-                <span style="color:#9a938c;font-size:11.5px;">au coût</span>
+                <span style="color:#9a938c;font-size:11.5px;">coût indicatif</span>
                 <span style="color:{TEXT};font-weight:700;font-size:14px;">{fmt(costs.get(p.id) ?? 0)} <span style="color:{MUTED};font-size:11px;font-weight:500;">/ u</span></span>
               </div>
             </button>
@@ -228,8 +235,7 @@
       <div style="width:438px;flex:1 1 360px;max-width:100%;display:flex;flex-direction:column;background:{PANEL};border:{BORDER};border-radius:12px;">
         <div style="padding:18px 20px 12px;">
           <div style="color:{MUTED};font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:9px;">Farmeur crédité</div>
-          {#if rFarmer}<div style="color:{TEXT};font-size:13px;margin-bottom:8px;">Crédité : <strong>{rFarmer.inGameName ?? rFarmer.username}</strong></div>{/if}
-          <UserAutocomplete onSelect={(u) => (rFarmer = u)} placeholder="@pseudo ou nom en jeu…" />
+          <input bind:value={rFarmerName} placeholder="Nom du farmeur (texte libre)…" aria-label="Nom du farmeur" style="width:100%;background:{INPUT_BG};border:1px solid rgba(255,255,255,0.12);border-radius:9px;color:{TEXT};font-size:14px;padding:10px 12px;outline:none;" />
         </div>
         <div style="flex:1;min-height:0;overflow:auto;padding:4px 20px;">
           {#if lot.length === 0}
@@ -243,20 +249,23 @@
                 <div style="width:32px;height:32px;border-radius:8px;background:{famColor(l.item)};display:flex;align-items:center;justify-content:center;color:#16110d;font-weight:800;font-size:13px;flex:none;">{(l.item?.name ?? '?').slice(0, 2).toUpperCase()}</div>
                 <div style="flex:1;min-width:0;line-height:1.3;">
                   <div style="color:{TEXT};font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{l.item?.name}</div>
-                  <div style="color:{MUTED};font-size:12px;">{fmt(l.cost)} / u au coût</div>
+                  <div style="display:flex;align-items:center;gap:5px;margin-top:3px;">
+                    <input type="number" min="0" value={l.price} onchange={(e) => setPrice(l.id, e.currentTarget.value)} aria-label="Prix d'achat unitaire" style="width:72px;background:{INPUT_BG};border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:{TEXT};font-size:12.5px;font-weight:600;text-align:right;padding:4px 7px;outline:none;" />
+                    <span style="color:{MUTED};font-size:11.5px;">septims / u</span>
+                  </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:5px;flex:none;">
                   <button onclick={() => incMat(l.id, -1)} style="width:28px;height:28px;background:#232120;border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:#cfc8c2;font-size:16px;cursor:pointer;">−</button>
                   <span style="min-width:34px;text-align:center;color:{TEXT};font-weight:700;font-size:14px;">{l.qty}</span>
                   <button onclick={() => incMat(l.id, 1)} style="width:28px;height:28px;background:#232120;border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:#cfc8c2;font-size:16px;cursor:pointer;">+</button>
                 </div>
-                <div style="width:78px;text-align:right;color:{TEXT};font-weight:700;font-size:13.5px;flex:none;">{fmt(l.cost * l.qty)}</div>
+                <div style="width:78px;text-align:right;color:{TEXT};font-weight:700;font-size:13.5px;flex:none;">{fmt(l.price * l.qty)}</div>
               </div>
             {/each}
           {/if}
         </div>
         <div style="border-top:1px solid rgba(255,255,255,0.08);padding:16px 20px;background:#19110d;border-radius:0 0 12px 12px;">
-          <div style="display:flex;justify-content:space-between;color:#9a938c;font-size:13px;margin-bottom:6px;"><span>{lot.length} matières · {fmt(rUnits)} unités</span><span>au coût</span></div>
+          <div style="display:flex;justify-content:space-between;color:#9a938c;font-size:13px;margin-bottom:6px;"><span>{lot.length} matières · {fmt(rUnits)} unités</span><span>prix d'achat</span></div>
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;"><span style="color:{TEXT};font-size:15px;font-weight:700;">Crédité au farmeur</span><span style="color:{ORANGE};font-size:27px;font-weight:800;">{fmt(rTotal)} <span style="font-size:13px;color:{MUTED};font-weight:500;">septims</span></span></div>
           <div style="display:flex;align-items:center;gap:10px;background:#15110e;border:1px solid rgba(255,255,255,0.08);border-radius:9px;padding:11px 13px;margin-bottom:14px;color:{MUTED};font-size:12px;">
             <Info size={15} /> La marchandise entre dans le coffre principal ; le farmeur est crédité du total.
@@ -323,16 +332,13 @@
           </tr>
         </thead>
         <tbody>
-          {#each rows as f (f.farmerUserId)}
+          {#each rows as f (f.farmerName)}
             {@const due = f.remaining > 0}
             <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
               <td style="padding:11px 16px;">
                 <div style="display:flex;align-items:center;gap:11px;">
-                  <div style="width:32px;height:32px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:12.5px;flex:none;">{initials(f.farmerInGameName ?? f.farmerUsername)}</div>
-                  <div style="line-height:1.25;">
-                    <div style="color:{TEXT};font-weight:600;">{f.farmerInGameName ?? f.farmerUsername}</div>
-                    {#if f.farmerInGameName}<div style="color:{MUTED};font-size:12px;">@{f.farmerUsername}</div>{/if}
-                  </div>
+                  <div style="width:32px;height:32px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:12.5px;flex:none;">{initials(f.farmerName)}</div>
+                  <div style="color:{TEXT};font-weight:600;">{f.farmerName}</div>
                 </div>
               </td>
               <td style="padding:11px 16px;text-align:right;color:#9a938c;">{fmt(f.totalCredit)}</td>
@@ -363,11 +369,8 @@
         <button onclick={() => (payFarmer = null)} aria-label="Fermer" style="background:transparent;border:none;color:{MUTED};cursor:pointer;display:flex;padding:4px;"><X size={18} /></button>
       </div>
       <div style="padding:18px;display:flex;gap:13px;align-items:center;">
-        <div style="width:46px;height:46px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:17px;flex:none;">{initials(payFarmer.farmerInGameName ?? payFarmer.farmerUsername)}</div>
-        <div style="line-height:1.3;">
-          <div style="color:{TEXT};font-size:17px;font-weight:700;">{payFarmer.farmerInGameName ?? payFarmer.farmerUsername}</div>
-          {#if payFarmer.farmerInGameName}<div style="color:{MUTED};font-size:12.5px;">@{payFarmer.farmerUsername}</div>{/if}
-        </div>
+        <div style="width:46px;height:46px;border-radius:999px;background:rgba(232,89,12,0.16);display:flex;align-items:center;justify-content:center;color:{SOFT};font-weight:700;font-size:17px;flex:none;">{initials(payFarmer.farmerName)}</div>
+        <div style="color:{TEXT};font-size:17px;font-weight:700;">{payFarmer.farmerName}</div>
       </div>
       <div style="margin:0 18px;background:#15110e;border:1px solid rgba(232,89,12,0.3);border-radius:11px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
         <span style="color:{MUTED};font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Solde dû</span>

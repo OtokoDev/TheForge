@@ -305,8 +305,7 @@ public class StatsService {
         List<CreancesStatsDto.FarmerStat> top = farmers.stream()
                 .sorted(Comparator.comparingLong(CreanceFarmerDto::remaining).reversed()).limit(10)
                 .map(f -> new CreancesStatsDto.FarmerStat(
-                        f.farmerInGameName() != null && !f.farmerInGameName().isBlank() ? f.farmerInGameName() : f.farmerUsername(),
-                        f.totalCredit(), f.totalPaid(), f.remaining()))
+                        f.farmerName(), f.totalCredit(), f.totalPaid(), f.remaining()))
                 .toList();
         return new CreancesStatsDto(totalDu, totalCredit, totalPaid, ratio, serie, top);
     }

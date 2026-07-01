@@ -6,6 +6,6 @@ import io.micronaut.serde.annotation.Serdeable;
 import java.util.List;
 import java.util.UUID;
 
-/** Dépôt d'un farmeur : items déposés dans un compte stock, valorisés en créance. */
+/** Dépôt d'un farmeur (nom libre) : items déposés dans un compte stock, valorisés en créance. */
 @Serdeable
-public record DepositRequest(UUID farmerUserId, List<DepositLine> lines, UUID stockAccountId, @Nullable String reference) {}
+public record DepositRequest(String farmerName, List<DepositLine> lines, UUID stockAccountId, @Nullable String reference) {}

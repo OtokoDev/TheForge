@@ -30,7 +30,8 @@
   let hidden = $derived($currentBusiness?.hiddenScreens ?? [])
   let primary = $derived([
     ...primaryBase.filter(
-      (it) => (it.href !== '/carte' || isCompagnie) && !hidden.includes(it.href),
+      (it) =>
+        ((it.href !== '/carte' && it.href !== '/approvisionnement') || isCompagnie) && !hidden.includes(it.href),
     ),
     ...(canConfig ? [{ href: '/configuration', label: 'Configuration', icon: Settings }] : []),
   ])

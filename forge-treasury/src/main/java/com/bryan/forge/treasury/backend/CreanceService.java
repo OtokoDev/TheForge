@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.UUID;
 
 @Singleton
@@ -60,15 +61,16 @@ public class CreanceService {
     }
 
     /**
-     * Dépôt d'un farmeur : les items entrent dans le compte stock (mouvements) et la
-     * créance CREDIT est valorisée = Σ(qté × valeur courante), arrondi par excès.
+     * Dépôt d'un farmeur (nom libre) : les items entrent dans le compte stock (mouvements) et la
+     * créance CREDIT est valorisée = Σ(qté × prix). Prix = prix d'achat négocié si fourni, sinon
+     * valeur (coût) courante de l'objet. Arrondi par excès.
      */
     @Transactional
-    public CreanceFarmerDto deposit(User actor, UUID businessId, UUID farmerUserId, List<DepositLine> lines,
+    public CreanceFarmerDto deposit(User actor, UUID businessId, String farmerName, List<DepositLine> lines,
                                     UUID stockAccountId, String reference) {
         requireBusiness(businessId);
         access.requireOperate(actor, businessId);
-        User farmer = requireUser(farmerUserId);
+        String farmer = requireFarmerName(farmerName);
         requireAccount(stockAccountId, businessId);
         if (lines == null || lines.isEmpty()) {
             throw new IllegalArgumentException("Aucun item déposé");
@@ -81,32 +83,36 @@ public class CreanceService {
             }
             Item item = itemRepo.findById(line.itemId())
                     .orElseThrow(() -> new NoSuchElementException("Item introuvable : " + line.itemId()));
-            // Dette envers le fermier = valeur (coût) des matières déposées.
-            BigDecimal unit = item.isSystem()
-                    ? BigDecimal.ONE
-                    : productRepo.findByBusinessIdAndItemIdAndValidToIsNull(businessId, line.itemId())
-                            .map(Product::getValeur).filter(java.util.Objects::nonNull).orElse(BigDecimal.ZERO);
+            BigDecimal unit;
+            if (line.unitPrice() != null && line.unitPrice().signum() >= 0) {
+                unit = line.unitPrice(); // prix d'achat négocié
+            } else {
+                unit = item.isSystem()
+                        ? BigDecimal.ONE
+                        : productRepo.findByBusinessIdAndItemIdAndValidToIsNull(businessId, line.itemId())
+                                .map(Product::getValeur).filter(Objects::nonNull).orElse(BigDecimal.ZERO);
+            }
             value = value.add(unit.multiply(BigDecimal.valueOf(line.quantity())));
             ledgerService.applyMovement(businessId, line.itemId(), line.quantity(), null, stockAccountId,
-                    MovementType.DEPOSIT, "CREANCE", null, "Dépôt " + farmer.getDisplayName(), actor.getId());
+                    MovementType.DEPOSIT, "CREANCE", null, "Dépôt " + farmer, actor.getId());
         }
 
         long amount = value.setScale(0, RoundingMode.CEILING).longValueExact();
         if (amount > 0) {
-            repo.save(new CreanceEntry(businessId, farmerUserId, CreanceType.CREDIT, amount, reference, actor.getId()));
+            repo.save(new CreanceEntry(businessId, farmer, CreanceType.CREDIT, amount, reference, actor.getId()));
         }
         audit.record(businessId, actor.getId(), "CREANCE_DEPOT",
-                "Dépôt " + farmer.getDisplayName() + " — " + amount + " septims (" + lines.size() + " ligne(s))");
-        return balance(businessId, farmerUserId, farmer.getUsername(), farmer.getInGameName());
+                "Dépôt " + farmer + " — " + amount + " septims (" + lines.size() + " ligne(s))");
+        return balance(businessId, farmer);
     }
 
     /** Paiement d'un farmeur : septimes sortis du coffre (garde solde négatif) + entrée PAIEMENT. */
     @Transactional
-    public CreanceFarmerDto pay(User actor, UUID businessId, UUID farmerUserId, long amount,
+    public CreanceFarmerDto pay(User actor, UUID businessId, String farmerName, long amount,
                                 UUID coffreAccountId, String reference) {
         requireBusiness(businessId);
         access.requireOperate(actor, businessId);
-        User farmer = requireUser(farmerUserId);
+        String farmer = requireFarmerName(farmerName);
         requireAccount(coffreAccountId, businessId);
         if (amount <= 0) {
             throw new IllegalArgumentException("Le montant doit être positif");
@@ -115,47 +121,40 @@ public class CreanceService {
         UUID septimeId = itemRepo.findFirstBySystemTrue()
                 .orElseThrow(() -> new IllegalStateException("Item septime introuvable")).getId();
         ledgerService.applyMovement(businessId, septimeId, (int) amount, coffreAccountId, null,
-                MovementType.WITHDRAWAL, "CREANCE", null, "Paiement " + farmer.getDisplayName(), actor.getId());
+                MovementType.WITHDRAWAL, "CREANCE", null, "Paiement " + farmer, actor.getId());
 
-        repo.save(new CreanceEntry(businessId, farmerUserId, CreanceType.PAIEMENT, amount, reference, actor.getId()));
+        repo.save(new CreanceEntry(businessId, farmer, CreanceType.PAIEMENT, amount, reference, actor.getId()));
         audit.record(businessId, actor.getId(), "CREANCE_PAIEMENT",
-                "Paiement " + farmer.getDisplayName() + " — " + amount + " septims");
-        return balance(businessId, farmerUserId, farmer.getUsername(), farmer.getInGameName());
+                "Paiement " + farmer + " — " + amount + " septims");
+        return balance(businessId, farmer);
     }
 
-    /** Soldes de tous les farmeurs ayant une créance dans le business. */
+    /** Soldes de tous les farmeurs ayant une créance dans le business (agrégés par nom). */
     @Transactional
     public List<CreanceFarmerDto> listFarmers(User actor, UUID businessId) {
         requireBusiness(businessId);
         access.requireView(actor, businessId);
 
-        Map<UUID, long[]> agg = new HashMap<>(); // [credit, paid]
+        Map<String, long[]> agg = new HashMap<>(); // nom -> [credit, paid]
         for (CreanceEntry e : repo.findByBusinessId(businessId)) {
-            long[] a = agg.computeIfAbsent(e.getFarmerUserId(), k -> new long[2]);
+            long[] a = agg.computeIfAbsent(e.getFarmerName(), k -> new long[2]);
             if (e.getType() == CreanceType.CREDIT) a[0] += e.getAmount();
             else a[1] += e.getAmount();
         }
-
-        Map<UUID, User> users = new HashMap<>();
         return agg.entrySet().stream()
-                .map(en -> {
-                    User u = users.computeIfAbsent(en.getKey(), id -> userRepo.findById(id).orElse(null));
-                    long credit = en.getValue()[0];
-                    long paid = en.getValue()[1];
-                    return new CreanceFarmerDto(en.getKey(), u != null ? u.getUsername() : "?",
-                            u != null ? u.getInGameName() : null, credit, paid, credit - paid);
-                })
+                .map(en -> new CreanceFarmerDto(en.getKey(), en.getValue()[0], en.getValue()[1],
+                        en.getValue()[0] - en.getValue()[1]))
                 .sorted(Comparator.comparingLong(CreanceFarmerDto::remaining).reversed())
                 .toList();
     }
 
     /** Historique des écritures d'un farmeur. */
     @Transactional
-    public List<CreanceEntryDto> entries(User actor, UUID businessId, UUID farmerUserId) {
+    public List<CreanceEntryDto> entries(User actor, UUID businessId, String farmerName) {
         requireBusiness(businessId);
         access.requireView(actor, businessId);
         Map<UUID, String> names = new HashMap<>();
-        return repo.findByBusinessIdAndFarmerUserIdOrderByCreatedAtDesc(businessId, farmerUserId).stream()
+        return repo.findByBusinessIdAndFarmerNameOrderByCreatedAtDesc(businessId, requireFarmerName(farmerName)).stream()
                 .map(e -> new CreanceEntryDto(e.getType(), e.getAmount(), e.getReference(),
                         names.computeIfAbsent(e.getCreatedBy(),
                                 id -> userRepo.findById(id).map(User::getDisplayName).orElse("?")),
@@ -165,25 +164,27 @@ public class CreanceService {
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private CreanceFarmerDto balance(UUID businessId, UUID farmerUserId, String username, String inGameName) {
+    private CreanceFarmerDto balance(UUID businessId, String farmerName) {
         long credit = 0;
         long paid = 0;
-        for (CreanceEntry e : repo.findByBusinessIdAndFarmerUserIdOrderByCreatedAtDesc(businessId, farmerUserId)) {
+        for (CreanceEntry e : repo.findByBusinessIdAndFarmerNameOrderByCreatedAtDesc(businessId, farmerName)) {
             if (e.getType() == CreanceType.CREDIT) credit += e.getAmount();
             else paid += e.getAmount();
         }
-        return new CreanceFarmerDto(farmerUserId, username, inGameName, credit, paid, credit - paid);
+        return new CreanceFarmerDto(farmerName, credit, paid, credit - paid);
+    }
+
+    private static String requireFarmerName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Nom du farmeur requis");
+        }
+        return name.trim();
     }
 
     private void requireBusiness(UUID businessId) {
         if (businessRepo.findById(businessId).isEmpty()) {
             throw new NoSuchElementException("Business introuvable : " + businessId);
         }
-    }
-
-    private User requireUser(UUID userId) {
-        return userRepo.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("Utilisateur introuvable : " + userId));
     }
 
     private void requireAccount(UUID accountId, UUID businessId) {
