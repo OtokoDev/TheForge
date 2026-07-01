@@ -8,7 +8,10 @@
   import BarsH from '../components/charts/BarsH.svelte'
   import Area from '../components/charts/Area.svelte'
   import Donut from '../components/charts/Donut.svelte'
-  import Finance from './Finance.svelte'
+  import ResultatSummary from '../components/finance/ResultatSummary.svelte'
+  import PaieSection from '../components/finance/PaieSection.svelte'
+  import DepensesSection from '../components/finance/DepensesSection.svelte'
+  import CityTaxSection from '../components/finance/CityTaxSection.svelte'
 
   const ORANGE = '#E8590C'
   const GREEN = '#5fa890'
@@ -27,11 +30,12 @@
     { key: 'activity', label: 'Activité' },
     ...(isCompagnie ? [{ key: 'creances', label: 'Créances' }] : []),
     { key: 'clients', label: 'Clients' },
-    ...(canAdmin ? [{ key: 'finance', label: 'Finance' }] : []),
+    ...(canAdmin ? [{ key: 'paie', label: 'Paie' }, { key: 'depenses', label: 'Dépenses' }, { key: 'taxe', label: 'Taxe' }] : []),
   ])
   const PERIODS = [{ d: 7, l: '7 j' }, { d: 30, l: '30 j' }, { d: 90, l: '90 j' }]
   const DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
   const iso = (d) => d.toISOString().slice(0, 10)
+  const FIN = ['paie', 'depenses', 'taxe'] // onglets Finance (admin) : hors flux stats
 
   let tab = $state('overview')
   let from = $state(new Date(Date.now() - 30 * 86400000))
@@ -44,7 +48,7 @@
   // Si on quitte une Compagnie alors que l'onglet Créances est ouvert → revenir à la vue d'ensemble.
   $effect(() => {
     if (tab === 'creances' && !isCompagnie) tab = 'overview'
-    if (tab === 'finance' && !canAdmin) tab = 'overview'
+    if (FIN.includes(tab) && !canAdmin) tab = 'overview'
   })
 
   function preset(d) {
@@ -63,7 +67,7 @@
     const f = from.toISOString()
     const tt = to.toISOString()
     if (!id) return
-    if (t === 'finance') { loading = false; return }
+    if (FIN.includes(t)) { loading = false; return }
     loading = true
     data = null
     let active = true
@@ -113,7 +117,7 @@
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-bold tracking-tight">Finance</h1>
-      {#if tab !== 'finance'}
+      {#if !FIN.includes(tab)}
         <div class="flex flex-wrap items-center gap-1">
           {#each PERIODS as p (p.d)}
             <button onclick={() => preset(p.d)} class="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:bg-muted">{p.l}</button>
@@ -132,8 +136,12 @@
       {/each}
     </div>
 
-    {#if tab === 'finance'}
-      <Finance />
+    {#if tab === 'paie'}
+      <PaieSection businessId={$currentBusinessId} />
+    {:else if tab === 'depenses'}
+      <DepensesSection businessId={$currentBusinessId} />
+    {:else if tab === 'taxe'}
+      <CityTaxSection businessId={$currentBusinessId} />
     {:else if loading || dataTab !== tab}
       <p class="text-sm text-muted-foreground">Chargement…</p>
     {:else if data}
@@ -161,6 +169,9 @@
               <Donut data={[{ nom: 'Part business', valeur: data.partBusiness }, { nom: 'Part forgeron', valeur: data.partForgeron }]} colors={[ORANGE, '#a288bd']} format={fmt} />
             </div>
           </div>
+          {#if canAdmin}
+            <ResultatSummary businessId={$currentBusinessId} />
+          {/if}
         </div>
       {:else if tab === 'products'}
         <div class="flex flex-col gap-4">
