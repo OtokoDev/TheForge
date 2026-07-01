@@ -3,7 +3,6 @@
   import { canAdminBusiness } from '../lib/roles.js'
   import { api, ApiError } from '../lib/api.js'
   import { notifyError, notifySuccess } from '../lib/notifications.js'
-  import PageHeader from '../components/PageHeader.svelte'
   import Modal from '../components/ui/Modal.svelte'
   import Button from '../components/ui/Button.svelte'
   import Input from '../components/ui/Input.svelte'
@@ -101,8 +100,6 @@
 
   const dt = (iso) => new Date(iso).toLocaleDateString('fr-FR')
 </script>
-
-<PageHeader title="Finance" description="Paie des forgerons, dépenses et compte de résultat." />
 
 {#if !$currentBusinessId}
   <p class="text-sm text-muted-foreground">Sélectionne un business (en haut).</p>

@@ -1,5 +1,6 @@
 <script>
-  import { currentBusinessId, currentBusiness } from '../lib/session.js'
+  import { me, currentBusinessId, currentBusiness } from '../lib/session.js'
+  import { canAdminBusiness } from '../lib/roles.js'
   import { api, ApiError } from '../lib/api.js'
   import { exportCsv } from '../lib/csv.js'
   import { notifyError } from '../lib/notifications.js'
@@ -7,6 +8,7 @@
   import BarsH from '../components/charts/BarsH.svelte'
   import Area from '../components/charts/Area.svelte'
   import Donut from '../components/charts/Donut.svelte'
+  import Finance from './Finance.svelte'
 
   const ORANGE = '#E8590C'
   const GREEN = '#5fa890'
@@ -16,6 +18,7 @@
 
   // Créances : seulement pour les Compagnies (comme la page Rachat).
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
+  let canAdmin = $derived($currentBusinessId ? canAdminBusiness($me, $currentBusinessId) : false)
   let TABS = $derived([
     { key: 'overview', label: "Vue d'ensemble" },
     { key: 'products', label: 'Produits' },
@@ -24,6 +27,7 @@
     { key: 'activity', label: 'Activité' },
     ...(isCompagnie ? [{ key: 'creances', label: 'Créances' }] : []),
     { key: 'clients', label: 'Clients' },
+    ...(canAdmin ? [{ key: 'finance', label: 'Finance' }] : []),
   ])
   const PERIODS = [{ d: 7, l: '7 j' }, { d: 30, l: '30 j' }, { d: 90, l: '90 j' }]
   const DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
@@ -40,6 +44,7 @@
   // Si on quitte une Compagnie alors que l'onglet Créances est ouvert → revenir à la vue d'ensemble.
   $effect(() => {
     if (tab === 'creances' && !isCompagnie) tab = 'overview'
+    if (tab === 'finance' && !canAdmin) tab = 'overview'
   })
 
   function preset(d) {
@@ -58,6 +63,7 @@
     const f = from.toISOString()
     const tt = to.toISOString()
     if (!id) return
+    if (t === 'finance') { loading = false; return }
     loading = true
     data = null
     let active = true
@@ -106,16 +112,18 @@
 {:else}
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-bold tracking-tight">Statistiques</h1>
-      <div class="flex flex-wrap items-center gap-1">
-        {#each PERIODS as p (p.d)}
-          <button onclick={() => preset(p.d)} class="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:bg-muted">{p.l}</button>
-        {/each}
-        <button onclick={month} class="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:bg-muted">Mois</button>
-        <input type="date" value={iso(from)} max={iso(to)} onchange={(e) => e.currentTarget.value && (from = new Date(e.currentTarget.value))} class="rounded-md border bg-card px-2 py-1 text-sm" />
-        <span class="text-muted-foreground">→</span>
-        <input type="date" value={iso(to)} min={iso(from)} onchange={(e) => e.currentTarget.value && (to = new Date(e.currentTarget.value + 'T23:59:59'))} class="rounded-md border bg-card px-2 py-1 text-sm" />
-      </div>
+      <h1 class="text-2xl font-bold tracking-tight">Finance</h1>
+      {#if tab !== 'finance'}
+        <div class="flex flex-wrap items-center gap-1">
+          {#each PERIODS as p (p.d)}
+            <button onclick={() => preset(p.d)} class="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:bg-muted">{p.l}</button>
+          {/each}
+          <button onclick={month} class="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:bg-muted">Mois</button>
+          <input type="date" value={iso(from)} max={iso(to)} onchange={(e) => e.currentTarget.value && (from = new Date(e.currentTarget.value))} class="rounded-md border bg-card px-2 py-1 text-sm" />
+          <span class="text-muted-foreground">→</span>
+          <input type="date" value={iso(to)} min={iso(from)} onchange={(e) => e.currentTarget.value && (to = new Date(e.currentTarget.value + 'T23:59:59'))} class="rounded-md border bg-card px-2 py-1 text-sm" />
+        </div>
+      {/if}
     </div>
 
     <div class="flex flex-wrap gap-1 border-b">
@@ -124,7 +132,9 @@
       {/each}
     </div>
 
-    {#if loading || dataTab !== tab}
+    {#if tab === 'finance'}
+      <Finance />
+    {:else if loading || dataTab !== tab}
       <p class="text-sm text-muted-foreground">Chargement…</p>
     {:else if data}
       {#if tab === 'overview'}

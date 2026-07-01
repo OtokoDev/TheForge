@@ -5,7 +5,6 @@ import Atelier from '../pages/Atelier.svelte'
 import Stock from '../pages/Stock.svelte'
 import Approvisionnement from '../pages/Approvisionnement.svelte'
 import Statistiques from '../pages/Statistiques.svelte'
-import Finance from '../pages/Finance.svelte'
 import MapBordeciel from '../pages/MapBordeciel.svelte'
 import Configuration from '../pages/Configuration.svelte'
 import Staff from '../pages/Staff.svelte'
@@ -25,7 +24,7 @@ export const routes = {
   '/achats': Approvisionnement,
   '/rachat': Approvisionnement,
   '/statistiques': Statistiques,
-  '/finance': Finance,
+  '/finance': Statistiques,
   '/carte': MapBordeciel,
   '/configuration': Configuration,
   '/staff': Staff,
