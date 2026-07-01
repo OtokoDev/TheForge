@@ -121,7 +121,7 @@ public class StatsService {
         long panierPrev = nbPrev == 0 ? 0 : caTotalPrev / nbPrev;
 
         List<Facture> impayes = cur.stream().filter(f -> !f.isPaid()).toList();
-        long impaye = impayes.stream().mapToLong(Facture::getTotalAmount).sum();
+        long impaye = impayes.stream().mapToLong(StatsService::resteDu).sum();
         long partBusiness = cur.stream().mapToLong(f -> lng(f.getBusinessShare())).sum();
         long partForgeron = cur.stream().mapToLong(f -> lng(f.getWorkerShare())).sum();
 
@@ -321,7 +321,7 @@ public class StatsService {
             long[] acc = byClient.computeIfAbsent(nom, k -> new long[3]);
             acc[0] += f.getTotalAmount();
             acc[1] += 1;
-            if (!f.isPaid()) acc[2] += f.getTotalAmount();
+            acc[2] += resteDu(f);
         }
         List<ClientsStatsDto.ClientStat> all = byClient.entrySet().stream()
                 .map(e -> new ClientsStatsDto.ClientStat(e.getKey(), e.getValue()[0], (int) e.getValue()[1], e.getValue()[2]))
@@ -338,6 +338,11 @@ public class StatsService {
         return factureRepo.findByBusinessIdOrderByNumeroDesc(businessId).stream()
                 .filter(f -> f.getStatus() == FactureStatus.VALIDEE && f.getValidatedAt() != null)
                 .toList();
+    }
+
+    /** Reste dû d'une facture = 0 si payée, sinon total − acompte déjà encaissé (borné ≥ 0). */
+    static long resteDu(Facture f) {
+        return f.isPaid() ? 0 : Math.max(0, f.getTotalAmount() - f.getDeposit());
     }
 
     private static List<Facture> inRange(List<Facture> factures, Instant from, Instant to) {

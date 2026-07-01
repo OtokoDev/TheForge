@@ -28,7 +28,9 @@
     const caJour = todayV.filter((f) => f.paid).reduce((s, f) => s + f.totalAmount, 0)
     const unpaid = validated.filter((f) => !f.paid)
     const panier = todayV.length ? Math.round(todayV.reduce((s, f) => s + f.totalAmount, 0) / todayV.length) : 0
-    return { caJour, emisJour: todayV.length, nonPaye: unpaid.reduce((s, f) => s + f.totalAmount, 0), nonPayeCount: unpaid.length, panier }
+    // Reste dû = total − acompte déjà encaissé (via la commande).
+    const nonPaye = unpaid.reduce((s, f) => s + Math.max(0, f.totalAmount - (f.deposit ?? 0)), 0)
+    return { caJour, emisJour: todayV.length, nonPaye, nonPayeCount: unpaid.length, panier }
   })
 
   let rows = $derived.by(() => {
