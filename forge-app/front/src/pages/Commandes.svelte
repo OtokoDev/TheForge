@@ -7,7 +7,6 @@
   import Modal from '../components/ui/Modal.svelte'
   import Button from '../components/ui/Button.svelte'
   import Input from '../components/ui/Input.svelte'
-  import SelectField from '../components/ui/SelectField.svelte'
   import NumberInput from '../components/ui/NumberInput.svelte'
   import { Trash2, Plus } from '@lucide/svelte'
 
@@ -29,8 +28,7 @@
   let dueDate = $state('')
   let acompte = $state('')
   let draftLines = $state([]) // [{ itemId, quantity, unitPrice }]
-  let pickItem = $state('')
-  let pickQty = $state('1')
+  let pickQuery = $state('')
 
   const STATUS = {
     DEVIS: { label: 'Devis', color: '#9a938c', bg: 'rgba(255,255,255,0.07)' },
@@ -72,21 +70,25 @@
     }),
   )
 
-  function addDraftLine() {
-    if (!pickItem) return
-    const q = Math.max(1, Math.round(Number(pickQty) || 1))
-    const existing = draftLines.find((l) => l.itemId === pickItem)
+  let catalogue = $derived.by(() => {
+    const q = pickQuery.trim().toLowerCase()
+    return q === '' ? items : items.filter((i) => i.name.toLowerCase().includes(q))
+  })
+  function addToCart(it) {
+    const existing = draftLines.find((l) => l.itemId === it.id)
     if (existing) {
-      draftLines = draftLines.map((l) => (l.itemId === pickItem ? { ...l, quantity: l.quantity + q } : l))
+      draftLines = draftLines.map((l) => (l.itemId === it.id ? { ...l, quantity: l.quantity + 1 } : l))
     } else {
-      draftLines = [...draftLines, { itemId: pickItem, quantity: q, unitPrice: Number(prices.get(pickItem) ?? 0) }]
+      draftLines = [...draftLines, { itemId: it.id, quantity: 1, unitPrice: Number(prices.get(it.id) ?? 0) }]
     }
-    pickQty = '1'
+  }
+  function incLine(itemId, d) {
+    draftLines = draftLines.map((l) => (l.itemId === itemId ? { ...l, quantity: l.quantity + d } : l)).filter((l) => l.quantity > 0)
   }
   const draftTotal = $derived(draftLines.reduce((s, l) => s + Number(l.unitPrice) * l.quantity, 0))
 
   function resetForm() {
-    clientName = ''; clientNote = ''; dueDate = ''; acompte = ''; draftLines = []; pickItem = ''; pickQty = '1'
+    clientName = ''; clientNote = ''; dueDate = ''; acompte = ''; draftLines = []; pickQuery = ''
   }
 
   async function createCommande() {
@@ -237,24 +239,44 @@
         </label>
       </div>
 
-      <div class="flex items-end gap-2 border-t pt-3">
-        <label class="flex flex-1 flex-col gap-1 text-xs text-muted-foreground">Article
-          <SelectField value={pickItem} onChange={(v) => (pickItem = v)} options={items.map((i) => ({ value: i.id, label: i.name }))} ariaLabel="Article" />
-        </label>
-        <label class="flex flex-col gap-1 text-xs text-muted-foreground">Qté
-          <NumberInput value={pickQty} onchange={(v) => (pickQty = v)} min={1} class="w-24" />
-        </label>
-        <Button variant="outline" onclick={addDraftLine}>Ajouter</Button>
+      <div class="flex flex-col gap-2 border-t pt-3">
+        <input
+          bind:value={pickQuery}
+          placeholder="Chercher un article à ajouter…"
+          aria-label="Chercher un article"
+          class="rounded-md border bg-input/30 px-2.5 py-1.5 text-sm outline-none"
+        />
+        <div class="grid max-h-40 grid-cols-2 gap-2 overflow-auto sm:grid-cols-3">
+          {#each catalogue as it (it.id)}
+            <button
+              type="button"
+              onclick={() => addToCart(it)}
+              class="flex flex-col items-start gap-0.5 rounded-lg border bg-card/60 p-2 text-left transition hover:border-primary hover:bg-muted"
+            >
+              <span class="w-full truncate text-sm font-medium">{it.name}</span>
+              <span class="text-xs text-muted-foreground">{fmt(prices.get(it.id) ?? 0)} septims/u</span>
+            </button>
+          {/each}
+          {#if catalogue.length === 0}
+            <p class="col-span-full py-2 text-center text-sm text-muted-foreground">Aucun article.</p>
+          {/if}
+        </div>
       </div>
 
       {#if draftLines.length > 0}
-        <div class="flex flex-col gap-1 rounded-lg border p-2">
+        <div class="flex flex-col gap-1.5 rounded-lg border p-2">
           {#each draftLines as l (l.itemId)}
             <div class="flex items-center gap-2 text-sm">
-              <span class="flex-1 truncate">{l.quantity}× {itemName.get(l.itemId) ?? '?'}</span>
+              <span class="min-w-0 flex-1 truncate">{itemName.get(l.itemId) ?? '?'}</span>
+              <div class="flex items-center gap-1">
+                <button type="button" onclick={() => incLine(l.itemId, -1)} aria-label="Moins" class="flex size-6 items-center justify-center rounded border text-muted-foreground hover:bg-muted">−</button>
+                <span class="w-7 text-center font-medium tabular-nums">{l.quantity}</span>
+                <button type="button" onclick={() => incLine(l.itemId, 1)} aria-label="Plus" class="flex size-6 items-center justify-center rounded border text-muted-foreground hover:bg-muted">+</button>
+              </div>
               <NumberInput value={String(l.unitPrice)} onchange={(v) => (draftLines = draftLines.map((x) => (x.itemId === l.itemId ? { ...x, unitPrice: Number(v) } : x)))} min={0} class="w-24" />
-              <span class="text-xs text-muted-foreground">septims/u</span>
-              <button onclick={() => (draftLines = draftLines.filter((x) => x.itemId !== l.itemId))} aria-label="Retirer" class="text-muted-foreground hover:text-destructive"><Trash2 size={15} /></button>
+              <span class="text-xs text-muted-foreground">/u</span>
+              <span class="w-20 text-right font-medium tabular-nums">{fmt(l.unitPrice * l.quantity)}</span>
+              <button type="button" onclick={() => (draftLines = draftLines.filter((x) => x.itemId !== l.itemId))} aria-label="Retirer" class="text-muted-foreground hover:text-destructive"><Trash2 size={15} /></button>
             </div>
           {/each}
           <div class="mt-1 border-t pt-1 text-right text-sm font-semibold">Total : {fmt(draftTotal)} septims</div>
