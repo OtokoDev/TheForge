@@ -7,6 +7,7 @@
   import { notifyError, notifySuccess } from '../lib/notifications.js'
   import NumberInput from '../components/ui/NumberInput.svelte'
   import Fab from '../components/ui/Fab.svelte'
+  import SelectField from '../components/ui/SelectField.svelte'
 
   const ORANGE = '#E8590C', TEXT = '#F4F1EE', MUTED = '#8f8880'
   const CARD = '#1c1a18', TABLE_BG = '#1a1816', HEAD_BG = '#221f1b', INPUT_BG = '#15110e'
@@ -259,9 +260,7 @@
 {/snippet}
 
 {#snippet picker(value, onChange, options)}
-  <select {value} onchange={(e) => onChange(e.currentTarget.value)} style="{pickerStyle} color-scheme:dark;">
-    {#each options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
-  </select>
+  <SelectField {value} {onChange} {options} class="w-full" />
 {/snippet}
 
 {#if !$currentBusinessId}
@@ -465,9 +464,7 @@
           <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px; overflow:auto; flex:1;">
             <div>
               <div style="color:{MUTED}; font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Coffre destination</div>
-              <select bind:value={depositAccount} aria-label="Coffre destination" style={pickerStyle}>
-                {#each accounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
-              </select>
+              <SelectField value={depositAccount} onChange={(v) => (depositAccount = v)} options={accounts.map((a) => ({ value: a.id, label: a.name }))} ariaLabel="Coffre destination" class="w-full" />
             </div>
             <input bind:value={depositQuery} placeholder="Chercher un objet à ajouter…" aria-label="Chercher un objet" style="width:100%; background:{INPUT_BG}; border:1px solid rgba(255,255,255,0.12); border-radius:9px; color:{TEXT}; font-size:13.5px; padding:9px 12px; outline:none;" />
             {#if depositQuery.trim()}

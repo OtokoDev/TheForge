@@ -6,7 +6,7 @@
   import { api, ApiError } from '../lib/api.js'
   import { notifyError, notifySuccess } from '../lib/notifications.js'
   import PageHeader from '../components/PageHeader.svelte'
-  import Select from '../components/ui/Select.svelte'
+  import SelectField from '../components/ui/SelectField.svelte'
   import toponyms from '../lib/data/toponyms.json'
   import holds from '../lib/data/holds.json'
 
@@ -279,7 +279,7 @@
       <div class="absolute right-3 top-3 z-[500] w-64 rounded-xl border bg-popover p-3 text-popover-foreground shadow-xl">
         <div class="mb-2 text-sm font-semibold">Nouveau point <span class="text-xs font-normal text-muted-foreground">({pending.x}, {pending.y})</span></div>
         <div class="flex flex-col gap-2">
-          <Select value={newType} onChange={(v) => (newType = v)} options={markerTypes.map((t) => ({ value: t.id, label: t.label }))} ariaLabel="Type de marqueur" placeholder="Type…" />
+          <SelectField value={newType} onChange={(v) => (newType = v)} options={markerTypes.map((t) => ({ value: t.id, label: t.label }))} ariaLabel="Type de marqueur" placeholder="Type…" class="w-full" />
 
           <input bind:value={newLabel} placeholder="Nom" aria-label="Nom" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
           <input bind:value={newNote} placeholder="Note (optionnel)" aria-label="Note" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
@@ -295,7 +295,7 @@
       <div class="absolute right-3 top-3 z-[500] w-64 rounded-xl border bg-popover p-3 text-popover-foreground shadow-xl">
         <div class="mb-2 text-sm font-semibold">Modifier le point</div>
         <div class="flex flex-col gap-2">
-          <Select value={editing.type} onChange={(v) => (editing.type = v)} options={markerTypes.map((t) => ({ value: t.id, label: t.label }))} ariaLabel="Type de marqueur" placeholder="Type…" />
+          <SelectField value={editing.type} onChange={(v) => (editing.type = v)} options={markerTypes.map((t) => ({ value: t.id, label: t.label }))} ariaLabel="Type de marqueur" placeholder="Type…" class="w-full" />
 
           <input bind:value={editing.label} placeholder="Nom" aria-label="Nom" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
           <input bind:value={editing.note} placeholder="Note (optionnel)" aria-label="Note" class="rounded-md border bg-input/30 px-2 py-1.5 text-sm outline-none" />
