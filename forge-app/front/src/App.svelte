@@ -17,11 +17,11 @@
   let errored = $state(false)
   let mobileNav = $state(false)
 
-  // Garde de visibilité : un écran masqué pour ce business (par SYSTEM) redirige vers le dashboard.
-  // SYSTEM en est exempté. Front-only (déclutter) : n'empêche pas l'appel direct des API.
+  // Garde de visibilité : un écran masqué pour ce business (par SYSTEM) redirige vers le dashboard,
+  // pour tout le monde (SYSTEM inclus). SYSTEM réactive via Système. Front-only (déclutter) :
+  // n'empêche pas l'appel direct des API.
   $effect(() => {
     if (!$me) return
-    if ($me.user?.globalRole === 'SYSTEM') return
     const hidden = $currentBusiness?.hiddenScreens ?? []
     const loc = router.location
     if (loc && hidden.some((h) => loc === h || loc.startsWith(h + '/'))) replace('/dashboard')

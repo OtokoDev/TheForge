@@ -25,11 +25,12 @@
   // Carte réservée aux Compagnies (l'onglet Farmeurs d'Approvisionnement l'est aussi, cf. la page).
   let isCompagnie = $derived($currentBusiness?.type === 'COMPAGNIE')
 
-  // Écrans masqués par SYSTEM pour ce business (SYSTEM voit tout).
+  // Écrans masqués par SYSTEM pour ce business : cachés pour TOUT LE MONDE (SYSTEM inclus).
+  // SYSTEM les réactive via Système → business (écran non masquable).
   let hidden = $derived($currentBusiness?.hiddenScreens ?? [])
   let primary = $derived([
     ...primaryBase.filter(
-      (it) => (it.href !== '/carte' || isCompagnie) && (isSystem || !hidden.includes(it.href)),
+      (it) => (it.href !== '/carte' || isCompagnie) && !hidden.includes(it.href),
     ),
     ...(canConfig ? [{ href: '/configuration', label: 'Configuration', icon: Settings }] : []),
   ])
